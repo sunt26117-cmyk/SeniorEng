@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
@@ -20,6 +21,26 @@ app.get('/api/health', (req, res) => {
     mode: '100% Offline Deterministic Expert Engine',
     time: new Date().toISOString(),
   });
+});
+
+// Download Single-File Offline HTML (Double-click runnable without any server or network)
+app.get('/api/download/offline-html', (req, res) => {
+  const offlineFilePath = path.join(process.cwd(), 'dist', 'ecu-copilot-offline.html');
+  if (fs.existsSync(offlineFilePath)) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="ECU_Hardware_Copilot_Offline.html"');
+    res.sendFile(offlineFilePath);
+  } else {
+    // If not built yet, fallback to dist/index.html or return message
+    const indexPath = path.join(process.cwd(), 'dist', 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="ECU_Hardware_Copilot_Offline.html"');
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).send('Offline bundle is being generated, please wait a moment.');
+    }
+  }
 });
 
 export const HARDWARE_CHIEF_SYSTEM_PROMPT = `

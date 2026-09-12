@@ -36,6 +36,44 @@ export default function App() {
   const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
   const [isScenarioManageOpen, setIsScenarioManageOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+  const [isPwaInstalled, setIsPwaInstalled] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Detect if already launched in standalone mode
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+      setIsPwaInstalled(true);
+    }
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', () => {
+      setIsPwaInstalled(true);
+      setDeferredInstallPrompt(null);
+      showToast('已成功安装为手机独立应用！', 'success');
+    });
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredInstallPrompt) {
+      showToast('请点击浏览器右上角三个点，选择「安装应用」或「添加到主屏幕」', 'info');
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    const choiceResult = await deferredInstallPrompt.userChoice;
+    if (choiceResult.outcome === 'accepted') {
+      setIsPwaInstalled(true);
+      setDeferredInstallPrompt(null);
+    }
+  };
 
   const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToastMessage({ text, type });
@@ -241,7 +279,29 @@ export default function App() {
         onExportBackup={handleExportBackup}
         onImportBackup={handleImportBackup}
         onExportMarkdown={handleExportMarkdown}
+        onDownloadOfflineHtml={() => {
+          showToast('正在下载纯离线单文件版 HTML，下载后双击即可直接使用！', 'success');
+        }}
       />
+
+      {/* Mobile PWA Install Banner */}
+      {!isPwaInstalled && deferredInstallPrompt && (
+        <div id="pwa-install-banner" className="bg-gradient-to-r from-blue-900/90 via-indigo-950/90 to-slate-900/90 border-b border-blue-500/30 px-4 py-2.5 text-xs flex items-center justify-between text-blue-100 shadow-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-base">📲</span>
+            <span>
+              检测到您正在使用移动设备，可一键安装为<strong>全屏独立车载应用</strong>（无需浏览器边框）。
+            </span>
+          </div>
+          <button
+            id="install-pwa-banner-btn"
+            onClick={handleInstallClick}
+            className="px-3 py-1 bg-blue-500 hover:bg-blue-400 text-white font-medium rounded-md shadow-sm transition whitespace-nowrap ml-3 cursor-pointer shrink-0"
+          >
+            立即安装 App
+          </button>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">

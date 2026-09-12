@@ -17,6 +17,7 @@ import {
   FileText,
   ShieldCheck,
   FolderPlus,
+  Globe2,
 } from 'lucide-react';
 import { PRESET_SCENARIOS } from '../data/presetScenarios';
 import { AppTheme, ModelApiConfig, PresetScenario } from '../types';
@@ -37,6 +38,7 @@ interface NavbarProps {
   onExportBackup: () => void;
   onImportBackup: (file: File) => void;
   onExportMarkdown: () => void;
+  onDownloadOfflineHtml?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -55,6 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onExportBackup,
   onImportBackup,
   onExportMarkdown,
+  onDownloadOfflineHtml,
 }) => {
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [showBackupMenu, setShowBackupMenu] = useState(false);
@@ -397,6 +400,29 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </div>
                       </div>
                     </button>
+
+                    {/* 4. 下载纯离线单文件 HTML (双击即用) */}
+                    <a
+                      id="download-offline-html-btn"
+                      href="/api/download/offline-html"
+                      download="ECU_Hardware_Copilot_Offline.html"
+                      onClick={() => {
+                        setShowBackupMenu(false);
+                        if (onDownloadOfflineHtml) onDownloadOfflineHtml();
+                      }}
+                      className="w-full px-3 py-2.5 flex items-start gap-2.5 text-left hover:bg-slate-800/80 transition cursor-pointer text-slate-200 border-t border-slate-800/60 bg-blue-950/20"
+                    >
+                      <Globe2 className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />
+                      <div>
+                        <div className="font-semibold text-cyan-300 flex items-center gap-1.5">
+                          <span>下载纯离线单文件版 (.html)</span>
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">断网双击即用</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                          打包为单文件，拷到内网电脑或手机上直接双击打开，离线专家推演，联网自动用 AI。
+                        </div>
+                      </div>
+                    </a>
 
                     <div className="mt-1 pt-1.5 px-3 border-t border-slate-800 text-[9px] text-slate-500">
                       💡 提示：所有计算与备份均在浏览器本地内存完成，无需外部网络和管理员特权。
