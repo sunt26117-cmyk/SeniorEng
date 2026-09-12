@@ -487,6 +487,8 @@ export interface PresetScenario {
   icon: string;
   context: ProjectContext;
   issue: IssueInput;
+  isCustom?: boolean;
+  createdAt?: string;
 }
 
 export interface WccaComponent {

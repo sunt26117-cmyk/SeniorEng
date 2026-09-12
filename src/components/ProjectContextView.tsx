@@ -1,6 +1,21 @@
 import React from 'react';
 import { ProjectContext, IssueInput, IssueCategory, ProjectPhase, AsilLevel, HwLeadStyle } from '../types';
-import { Layers, AlertCircle, FileText, Upload, Calendar, DollarSign, Clock, ShieldCheck, Tag, UserCheck, ShieldAlert, Zap, Scale } from 'lucide-react';
+import {
+  Layers,
+  AlertCircle,
+  FileText,
+  Upload,
+  Calendar,
+  DollarSign,
+  Clock,
+  ShieldCheck,
+  Tag,
+  UserCheck,
+  ShieldAlert,
+  Zap,
+  Scale,
+  FolderPlus,
+} from 'lucide-react';
 
 interface ProjectContextViewProps {
   context: ProjectContext;
@@ -9,6 +24,9 @@ interface ProjectContextViewProps {
   setIssue: React.Dispatch<React.SetStateAction<IssueInput>>;
   onAnalyze: () => void;
   isAnalyzing: boolean;
+  currentScenarioTitle?: string;
+  isCustomScenario?: boolean;
+  onOpenScenarioManage?: () => void;
 }
 
 const ALL_CATEGORIES: IssueCategory[] = [
@@ -51,6 +69,9 @@ export const ProjectContextView: React.FC<ProjectContextViewProps> = ({
   setIssue,
   onAnalyze,
   isAnalyzing,
+  currentScenarioTitle,
+  isCustomScenario,
+  onOpenScenarioManage,
 }) => {
   const toggleCategory = (cat: IssueCategory) => {
     if (issue.issueCategories.includes(cat)) {
@@ -94,22 +115,49 @@ export const ProjectContextView: React.FC<ProjectContextViewProps> = ({
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center">
-              <Layers className="w-5 h-5 mr-2 text-blue-400" />
-              ECU 硬件项目背景与技术问题输入
-            </h2>
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <h2 className="text-lg font-bold text-white flex items-center">
+                <Layers className="w-5 h-5 mr-2 text-blue-400" />
+                ECU 硬件项目背景与技术问题输入
+              </h2>
+              {currentScenarioTitle && (
+                <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium border flex items-center gap-1 ${
+                  isCustomScenario
+                    ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
+                    : 'bg-blue-950/60 border-blue-500/40 text-blue-300'
+                }`}>
+                  <span>工况:</span>
+                  <span className="font-semibold">{currentScenarioTitle}</span>
+                  {isCustomScenario && <span className="text-[10px] bg-emerald-500/20 px-1 rounded">自定义</span>}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-400 mt-1">
-              提供明确的技术事实与工程数据（如超标 dB、温升 ℃、裕量 mV、WCCA 公差），AI 将严格按照四项工程决策原则进行多维闭环分析。
+              提供明确的技术事实与工程数据（如超标 dB、温升 ℃、裕量 mV、WCCA 公差），支持自由修改、新建空白工况或另存为自定义工况。
             </p>
           </div>
-          <button
-            id="start-evaluate-action-btn"
-            onClick={onAnalyze}
-            disabled={isAnalyzing}
-            className="self-start md:self-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-lg font-medium text-xs sm:text-sm transition flex items-center shadow-sm cursor-pointer disabled:opacity-50"
-          >
-            {isAnalyzing ? '正在运行深度工程推理...' : '开始风险评估与决策推荐 →'}
-          </button>
+          <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+            {onOpenScenarioManage && (
+              <button
+                type="button"
+                id="context-scenario-manage-btn"
+                onClick={onOpenScenarioManage}
+                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-blue-300 border border-blue-500/40 rounded-lg text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="新建空白工况或将当前编辑内容另存为新工况"
+              >
+                <FolderPlus className="w-4 h-4 text-blue-400" />
+                <span>新建 / 另存为工况</span>
+              </button>
+            )}
+            <button
+              id="start-evaluate-action-btn"
+              onClick={onAnalyze}
+              disabled={isAnalyzing}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-lg font-medium text-xs sm:text-sm transition flex items-center shadow-sm cursor-pointer disabled:opacity-50"
+            >
+              {isAnalyzing ? '正在运行深度工程推理...' : '开始风险评估与决策推荐 →'}
+            </button>
+          </div>
         </div>
       </div>
 

@@ -16,13 +16,16 @@ import {
   Upload,
   FileText,
   ShieldCheck,
+  FolderPlus,
 } from 'lucide-react';
 import { PRESET_SCENARIOS } from '../data/presetScenarios';
-import { AppTheme, ModelApiConfig } from '../types';
+import { AppTheme, ModelApiConfig, PresetScenario } from '../types';
 
 interface NavbarProps {
   currentScenarioId: string;
   onSelectScenario: (scenarioId: string) => void;
+  customScenarios?: PresetScenario[];
+  onOpenScenarioManage: () => void;
   isAnalyzing: boolean;
   onRunAnalysis: () => void;
   activeTab: string;
@@ -39,6 +42,8 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   currentScenarioId,
   onSelectScenario,
+  customScenarios = [],
+  onOpenScenarioManage,
   isAnalyzing,
   onRunAnalysis,
   activeTab,
@@ -254,23 +259,45 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* Scenario Dropdown */}
-            <div className="relative hidden sm:block">
+            {/* Scenario Dropdown and Manage Button */}
+            <div className="flex items-center space-x-1.5 hidden sm:flex">
               <div className="flex items-center bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200">
                 <FolderOpen className="w-3.5 h-3.5 mr-1.5 text-slate-400 shrink-0" />
-                <span className="text-slate-400 mr-2 hidden lg:inline">典型工况:</span>
+                <span className="text-slate-400 mr-2 hidden lg:inline">工程工况:</span>
                 <select
                   value={currentScenarioId}
                   onChange={(e) => onSelectScenario(e.target.value)}
-                  className="bg-transparent text-slate-200 font-medium focus:outline-none cursor-pointer pr-2 max-w-[130px] lg:max-w-[180px] truncate"
+                  className="bg-transparent text-slate-200 font-medium focus:outline-none cursor-pointer pr-2 max-w-[130px] lg:max-w-[170px] truncate"
                 >
-                  {PRESET_SCENARIOS.map((sc) => (
-                    <option key={sc.id} value={sc.id} className="bg-slate-900 text-slate-200">
-                      {sc.title}
-                    </option>
-                  ))}
+                  {customScenarios.length > 0 && (
+                    <optgroup label="⭐️ 我的自定义工况">
+                      {customScenarios.map((sc) => (
+                        <option key={sc.id} value={sc.id} className="bg-slate-900 text-emerald-300">
+                          ⭐️ {sc.title}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  <optgroup label="📋 系统典型工况">
+                    {PRESET_SCENARIOS.map((sc) => (
+                      <option key={sc.id} value={sc.id} className="bg-slate-900 text-slate-200">
+                        {sc.title}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
+
+              {/* New/Manage Scenario Button */}
+              <button
+                id="scenario-manage-btn"
+                onClick={onOpenScenarioManage}
+                title="新建空白工况、另存当前或管理自定义工况库"
+                className="flex items-center space-x-1 bg-slate-800 hover:bg-slate-700 text-blue-400 border border-blue-500/30 rounded-lg px-2.5 py-1.5 text-xs font-medium transition cursor-pointer"
+              >
+                <FolderPlus className="w-3.5 h-3.5 text-blue-400" />
+                <span className="hidden xl:inline">新建/管理</span>
+              </button>
             </div>
 
             {/* Hidden File Input for Importing Backup */}
