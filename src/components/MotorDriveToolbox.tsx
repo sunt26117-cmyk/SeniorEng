@@ -13,6 +13,9 @@ import {
   calculateBusPumping,
   checkMillerRisk,
   calculateSnubberParams,
+  calculateCommutationRisk,
+  evaluatePositionSensorDegradation,
+  evaluateSafetyChainTiming,
 } from '../utils/motorPhysicsEngine';
 import {
   calculateStallTransientThermal,
@@ -72,6 +75,31 @@ export const MotorDriveToolbox: React.FC = () => {
     packageType: 'POWERPAK56' as 'POWERPAK56' | 'D2PAK' | 'POWERSSO36',
   });
   const [stallResult, setStallResult] = useState<StallThermalResult | null>(null);
+
+  // 5. 换相角误差与失步转矩纹波评估状态
+  const [commutationParams, setCommutationParams] = useState({
+    controlMode: 'hall_six_step' as 'sensorless_bemf' | 'hall_six_step' | 'foc_vector',
+    speedMinRpm: 800,
+    speedMaxRpm: 3800,
+    angleOffsetDeg: 6.5,
+    torqueFluctuationPct: 15,
+  });
+  const [commutationResult, setCommutationResult] = useState<ReturnType<typeof calculateCommutationRisk> | null>(null);
+
+  // 6. 转子位置传感器失效降级与 2-Hall 容错评估状态
+  const [sensorParams, setSensorParams] = useState({
+    sensorType: 'hall_triple' as 'hall_triple' | 'hall_single' | 'optical_encoder' | 'sensorless',
+  });
+  const [sensorResult, setSensorResult] = useState<ReturnType<typeof evaluatePositionSensorDegradation> | null>(null);
+
+  // 7. 功能安全链 FHTI 与看门狗/双通道电流核验时序
+  const [safetyChainParams, setSafetyChainParams] = useState({
+    fhtiBudgetMs: 10.0,
+    wdgTimeoutWindowMs: 4.0,
+    safeStateTransitionMs: 2.2,
+    currentSenseDeviationPct: 3.2,
+  });
+  const [safetyChainResult, setSafetyChainResult] = useState<ReturnType<typeof evaluateSafetyChainTiming> | null>(null);
 
   // 一键加载典型电机应用场景预设
   const applyPreset = (preset: ActuatorArchetype) => {
@@ -199,6 +227,21 @@ export const MotorDriveToolbox: React.FC = () => {
     });
     setStallResult(stRes);
   }, [stallParams]);
+
+  useEffect(() => {
+    const cRes = calculateCommutationRisk(commutationParams);
+    setCommutationResult(cRes);
+  }, [commutationParams]);
+
+  useEffect(() => {
+    const snRes = evaluatePositionSensorDegradation(sensorParams.sensorType);
+    setSensorResult(snRes);
+  }, [sensorParams]);
+
+  useEffect(() => {
+    const scRes = evaluateSafetyChainTiming(safetyChainParams);
+    setSafetyChainResult(scRes);
+  }, [safetyChainParams]);
 
   return (
     <div className="space-y-6">
@@ -757,6 +800,344 @@ export const MotorDriveToolbox: React.FC = () => {
               </div>
               <p className="text-[11px] text-slate-300 leading-relaxed border-t border-slate-800/80 pt-2">
                 💡 <strong>热安全结论：</strong> {stallResult.recommendation}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* 模块 5：换相角误差与失步转矩纹波评估 (Commutation Error & Stall Risk) */}
+        <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center space-x-2">
+              <Activity className="w-4 h-4 text-purple-400" />
+              <h3 className="font-bold text-sm text-slate-100">
+                5. 换相角误差与失步转矩纹波评估 (Commutation Risk)
+              </h3>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 font-semibold font-mono">
+              FOC / 6-Step Dynamics
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label className="text-slate-400 block mb-1">控制算法模式</label>
+              <select
+                value={commutationParams.controlMode}
+                onChange={(e) =>
+                  setCommutationParams({
+                    ...commutationParams,
+                    controlMode: e.target.value as 'sensorless_bemf' | 'hall_six_step' | 'foc_vector',
+                  })
+                }
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 font-medium"
+              >
+                <option value="hall_six_step">三霍尔六步方波 (Hall 6-Step)</option>
+                <option value="foc_vector">磁场定向控制 (FOC Vector)</option>
+                <option value="sensorless_bemf">无感反电势滑模 (Sensorless BEMF)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">换相电角度偏差 Δθ (°)</label>
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                max="35"
+                value={commutationParams.angleOffsetDeg}
+                onChange={(e) =>
+                  setCommutationParams({
+                    ...commutationParams,
+                    angleOffsetDeg: parseFloat(e.target.value) || 0,
+                  })
+                }
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">运行转速区间 (rpm)</label>
+              <div className="flex items-center space-x-1">
+                <input
+                  type="number"
+                  value={commutationParams.speedMinRpm}
+                  onChange={(e) =>
+                    setCommutationParams({
+                      ...commutationParams,
+                      speedMinRpm: parseFloat(e.target.value) || 100,
+                    })
+                  }
+                  className="w-1/2 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-slate-100 font-mono text-xs"
+                  placeholder="Min"
+                />
+                <span className="text-slate-500">-</span>
+                <input
+                  type="number"
+                  value={commutationParams.speedMaxRpm}
+                  onChange={(e) =>
+                    setCommutationParams({
+                      ...commutationParams,
+                      speedMaxRpm: parseFloat(e.target.value) || 3000,
+                    })
+                  }
+                  className="w-1/2 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-slate-100 font-mono text-xs"
+                  placeholder="Max"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">负载扭矩波动 (%)</label>
+              <input
+                type="number"
+                value={commutationParams.torqueFluctuationPct}
+                onChange={(e) =>
+                  setCommutationParams({
+                    ...commutationParams,
+                    torqueFluctuationPct: parseFloat(e.target.value) || 0,
+                  })
+                }
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 font-mono"
+              />
+            </div>
+          </div>
+
+          {commutationResult && (
+            <div className="bg-slate-900/80 p-3 rounded-lg border border-slate-800 space-y-2 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div>
+                  <span className="text-slate-400 text-[10px] block">转矩纹波预估</span>
+                  <span
+                    className={`text-base font-bold font-mono ${
+                      commutationResult.torqueRipplePct > 25
+                        ? 'text-red-400'
+                        : commutationResult.torqueRipplePct > 15
+                        ? 'text-amber-400'
+                        : 'text-emerald-400'
+                    }`}
+                  >
+                    {commutationResult.torqueRipplePct}%
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] block">失步卡死概率</span>
+                  <span
+                    className={`text-base font-bold font-mono uppercase ${
+                      commutationResult.stallOutProbability === 'high'
+                        ? 'text-red-400'
+                        : commutationResult.stallOutProbability === 'medium'
+                        ? 'text-amber-400'
+                        : 'text-emerald-400'
+                    }`}
+                  >
+                    {commutationResult.stallOutProbability} Risk
+                  </span>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <span className="text-slate-400 text-[10px] block">功角裕量评级</span>
+                  <span className="text-xs font-bold text-slate-200">
+                    {commutationParams.angleOffsetDeg <= 10 ? '稳定区间 (Margin > 30°)' : '濒临失稳临界线'}
+                  </span>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-300 border-t border-slate-800/80 pt-1.5">
+                ⚠️ <strong>机理分析：</strong> {commutationResult.stallOutReason}
+              </p>
+              <p className="text-[11px] text-purple-300">
+                🛡️ <strong>降级保护策略：</strong> {commutationResult.degradationAction}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* 模块 6：转子位置传感器失效降级与 2-Hall 容错 (Sensor Fault Tolerance) */}
+        <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center space-x-2">
+              <ShieldAlert className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-bold text-sm text-slate-100">
+                6. 位置传感器失效降级与 2-Hall 容错 (Sensor Degradation)
+              </h3>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 font-semibold font-mono">
+              ISO 26262 Limp-Home
+            </span>
+          </div>
+
+          <div className="text-xs">
+            <label className="text-slate-400 block mb-1">传感器硬件架构类型</label>
+            <select
+              value={sensorParams.sensorType}
+              onChange={(e) =>
+                setSensorParams({
+                  sensorType: e.target.value as 'hall_triple' | 'hall_single' | 'optical_encoder' | 'sensorless',
+                })
+              }
+              className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 font-medium"
+            >
+              <option value="hall_triple">三霍尔传感器 (120° 空间分布，具备 2-Hall 容错)</option>
+              <option value="hall_single">单霍尔传感器 (无正交冗余，单点故障直接停机)</option>
+              <option value="optical_encoder">增量式光电编码器 (ABZ 正交相位 + 磁链观测器)</option>
+              <option value="sensorless">无传感器高频注入 (HFI + 滑模观测器)</option>
+            </select>
+          </div>
+
+          {sensorResult && (
+            <div className="bg-slate-900/80 p-3 rounded-lg border border-slate-800 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">硬件冗余可用性：</span>
+                <span
+                  className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                    sensorResult.redundancyAvailable
+                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                      : 'bg-red-950 text-red-400 border border-red-800'
+                  }`}
+                >
+                  {sensorResult.redundancyAvailable ? '具备失效冗余与重构算法' : '无硬件冗余 (Single Point Failure)'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] block">故障触发诊断码 (DTC)</span>
+                <span className="font-mono text-xs font-bold text-amber-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                  {sensorResult.dtcTriggered}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300">
+                🔄 <strong>状态机重构逻辑：</strong> {sensorResult.switchingLogic}
+              </p>
+              <p className="text-[11px] text-amber-300">
+                ⚡ <strong>性能衰退与限速：</strong> {sensorResult.performanceLoss}
+              </p>
+              <div className="border-t border-slate-800/80 pt-2 flex items-center justify-between text-[11px]">
+                <span className="text-slate-400">DFMEA 独立条目风险打分：</span>
+                <span className="font-mono font-bold text-slate-200">
+                  S: {sensorResult.dfmeaSeverity} | O: {sensorResult.dfmeaOccurrence} | D: {sensorResult.dfmeaDetection} (RPN: {sensorResult.dfmeaSeverity * sensorResult.dfmeaOccurrence * sensorResult.dfmeaDetection})
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 模块 7：ISO 26262 功能安全链 FHTI 预算与双通道采样核验 (Safety Chain Timing) */}
+        <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-cyan-400" />
+              <h3 className="font-bold text-sm text-slate-100">
+                7. ISO 26262-5 功能安全链 FHTI 预算与双通道采样核验 (Safety Chain & Watchdog)
+              </h3>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-semibold font-mono">
+              FHTI & ASIL B Timing
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+            <div>
+              <label className="text-slate-400 block mb-1">FHTI 时间预算 (ms)</label>
+              <input
+                type="number"
+                step="0.5"
+                value={safetyChainParams.fhtiBudgetMs}
+                onChange={(e) =>
+                  setSafetyChainParams({
+                    ...safetyChainParams,
+                    fhtiBudgetMs: parseFloat(e.target.value) || 10,
+                  })
+                }
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">硬件看门狗窗口 (ms)</label>
+              <input
+                type="number"
+                step="0.5"
+                value={safetyChainParams.wdgTimeoutWindowMs}
+                onChange={(e) =>
+                  setSafetyChainParams({
+                    ...safetyChainParams,
+                    wdgTimeoutWindowMs: parseFloat(e.target.value) || 4,
+                  })
+                }
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">安全状态切换延时 (ms)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={safetyChainParams.safeStateTransitionMs}
+                onChange={(e) =>
+                  setSafetyChainParams({
+                    ...safetyChainParams,
+                    safeStateTransitionMs: parseFloat(e.target.value) || 2.2,
+                  })
+                }
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">双通道采样偏差 (%)</label>
+              <input
+                type="number"
+                step="0.2"
+                value={safetyChainParams.currentSenseDeviationPct}
+                onChange={(e) =>
+                  setSafetyChainParams({
+                    ...safetyChainParams,
+                    currentSenseDeviationPct: parseFloat(e.target.value) || 0,
+                  })
+                }
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 font-mono"
+              />
+            </div>
+          </div>
+
+          {safetyChainResult && (
+            <div className="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800 space-y-2 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                <div className="flex items-center space-x-2">
+                  <span className="text-slate-400 text-xs">FHTI 时序闭环：</span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs font-bold font-mono ${
+                      safetyChainResult.timingCompliance === 'PASS'
+                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                        : 'bg-red-950 text-red-400 border border-red-800'
+                    }`}
+                  >
+                    {safetyChainResult.timingCompliance === 'PASS' ? 'COMPLIANT (PASS)' : 'VIOLATION (CRITICAL)'}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-slate-400 text-xs">时序安全裕量：</span>
+                  <span
+                    className={`font-mono font-bold text-xs ${
+                      safetyChainResult.marginMs >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                  >
+                    {safetyChainResult.marginMs > 0 ? `+${safetyChainResult.marginMs} ms` : `${safetyChainResult.marginMs} ms`}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-slate-400 text-xs">电流双通道核验：</span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                      safetyChainResult.currentSenseStatus === 'COMPLIANT'
+                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                        : safetyChainResult.currentSenseStatus === 'WARNING'
+                        ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                        : 'bg-red-950 text-red-400 border border-red-800'
+                    }`}
+                  >
+                    {safetyChainResult.currentSenseStatus}
+                  </span>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-300 border-t border-slate-800/80 pt-2">
+                ⏱️ <strong>链路时序判定：</strong> {safetyChainResult.detail}
+              </p>
+              <p className="text-[11px] text-cyan-300">
+                🔍 <strong>采样交叉诊断：</strong> {safetyChainResult.currentSenseDiagnosis}
               </p>
             </div>
           )}

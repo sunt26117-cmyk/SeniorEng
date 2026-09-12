@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
+import { GoogleGenAI } from '@google/genai';
 
 import { runExpertAnalysis } from './src/data/expertEngine';
 
@@ -135,18 +136,85 @@ async function callCustomOpenAIModel(
   }
 }
 
+/**
+ * Google GenAI 调用函数 (支持 Gemini 2.5 Flash / Pro 及环境变量 GEMINI_API_KEY)
+ */
+async function callGeminiModel(
+  config: {
+    apiKey?: string;
+    model?: string;
+    temperature?: number;
+  },
+  prompt: string,
+  systemPrompt: string
+): Promise<string> {
+  const apiKey = config.apiKey?.trim() || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('未检测到有效 Gemini API Key (可在此处填入或设置服务端环境变量 GEMINI_API_KEY)');
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+  const modelName = config.model?.trim() || 'gemini-2.5-flash';
+
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: prompt,
+    config: {
+      systemInstruction: systemPrompt,
+      responseMimeType: 'application/json',
+      temperature: typeof config.temperature === 'number' ? config.temperature : 0.2,
+    },
+  });
+
+  const content = response.text;
+  if (!content) {
+    throw new Error('Gemini 模型未返回有效文本内容');
+  }
+  return content;
+}
+
 // 模型 API 连通性测试接口
 app.post('/api/copilot/test-model', async (req, res) => {
   try {
     const { baseUrl, apiKey, model, provider } = req.body;
+
+    const startTime = Date.now();
+
+    if (provider === 'gemini') {
+      const key = apiKey?.trim() || process.env.GEMINI_API_KEY;
+      if (!key) {
+        return res.status(400).json({
+          success: false,
+          error: '请提供 Gemini API Key 或设置服务端环境变量 GEMINI_API_KEY',
+        });
+      }
+
+      const ai = new GoogleGenAI({ apiKey: key });
+      const testModel = model?.trim() || 'gemini-2.5-flash';
+
+      const response = await ai.models.generateContent({
+        model: testModel,
+        contents: '这是一次车规硬件决策系统 API 连通性检测，请仅回复："CONNECTED"',
+      });
+
+      const latency = Date.now() - startTime;
+      const reply = response.text?.trim() || 'CONNECTED';
+
+      return res.json({
+        success: true,
+        latency,
+        reply,
+        model: testModel,
+        message: `成功连接至 Gemini (${testModel}) (延迟 ${latency}ms)`,
+      });
+    }
+
     if (!apiKey || !baseUrl || !model) {
       return res.status(400).json({
         success: false,
         error: '请提供完整的 Base URL、API Key 与 Model 名称',
       });
     }
-
-    const startTime = Date.now();
     let normalizedBase = baseUrl.trim().replace(/\/+$/, '');
     if (!normalizedBase.endsWith('/chat/completions')) {
       normalizedBase = `${normalizedBase}/chat/completions`;
@@ -369,7 +437,48 @@ Return a single JSON object with these exact keys:
 }
 `;
 
-    // 1. 优先检查并调用用户配置的自定义大模型 (如 DeepSeek, 通义千问, 智谱, 硅基流动等)
+    // 1. 如果配置为 Google Gemini 模型 (支持服务端环境变量 GEMINI_API_KEY 自动授权)
+    if (
+      modelConfig &&
+      modelConfig.enabled &&
+      (modelConfig.provider === 'gemini' || (modelConfig.model && modelConfig.model.toLowerCase().includes('gemini')))
+    ) {
+      try {
+        const rawContent = await callGeminiModel(
+          {
+            apiKey: modelConfig.apiKey,
+            model: modelConfig.model,
+            temperature: modelConfig.temperature ?? 0.2,
+          },
+          prompt,
+          HARDWARE_CHIEF_SYSTEM_PROMPT
+        );
+
+        const parsed = healAndParseJson(rawContent);
+        res.setHeader('X-Engine-Source', `Gemini-${modelConfig.model}`);
+        return res.json({
+          success: true,
+          data: parsed,
+          result: parsed,
+          source: `gemini:${modelConfig.model}`,
+          model: modelConfig.model,
+        });
+      } catch (geminiErr: any) {
+        console.warn(`Gemini model (${modelConfig.model}) execution failed, falling back:`, geminiErr.message);
+        const fallbackResult = runExpertAnalysis(context, issue);
+        res.setHeader('X-Engine-Source', 'Local-Fallback');
+        return res.json({
+          success: true,
+          data: fallbackResult,
+          result: fallbackResult,
+          source: 'deterministic-expert',
+          useFallback: true,
+          error: `Gemini 模型 (${modelConfig.model}) 调用异常: ${geminiErr.message}，已自动平滑启用车规级确定性专家引擎。`,
+        });
+      }
+    }
+
+    // 2. 检查并调用用户配置的自定义 OpenAI 兼容大模型 (如 DeepSeek, 通义千问, 智谱, 硅基流动等)
     if (
       modelConfig &&
       modelConfig.enabled &&

@@ -182,6 +182,7 @@ export default function App() {
             onGoToRecommendation={() => setActiveTab('recommendation')}
             hwLeadStyle={context.hwLeadStyle || 'AGILE_DELIVERY'}
             onLeadStyleChange={(style) => setContext({ ...context, hwLeadStyle: style })}
+            recurrenceCount={context.recurrenceCount || 0}
           />
         )}
 

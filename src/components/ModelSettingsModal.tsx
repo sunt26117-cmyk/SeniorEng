@@ -36,6 +36,17 @@ interface ProviderPreset {
 
 export const PROVIDER_PRESETS: ProviderPreset[] = [
   {
+    id: 'gemini',
+    name: 'Google Gemini',
+    badge: 'Gemini 2.5 Flash / Pro',
+    baseUrl: 'https://generativelanguage.googleapis.com',
+    defaultModel: 'gemini-2.5-flash',
+    recommendedModels: ['gemini-2.5-flash', 'gemini-2.5-pro'],
+    description: '支持 Google Gemini 最新多模态与超长上下文模型，适合车载系统全场景推演。支持服务端环境变量 GEMINI_API_KEY 自动授权。',
+    docsUrl: 'https://ai.google.dev',
+    placeholderKey: 'AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (或留空使用服务端环境变量)',
+  },
+  {
     id: 'deepseek',
     name: 'DeepSeek (深度求索)',
     badge: '推荐 / 强逻辑',
@@ -165,10 +176,17 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
       return;
     }
 
-    if (!baseUrl || !apiKey || !model) {
+    if (activeProvider !== 'gemini' && (!baseUrl || !apiKey || !model)) {
       setTestResult({
         status: 'error',
         message: '请先填写完整的 Base URL、API Key 以及模型名称。',
+      });
+      return;
+    }
+    if (activeProvider === 'gemini' && !model) {
+      setTestResult({
+        status: 'error',
+        message: '请指定 Gemini 模型名称 (如 gemini-2.5-flash)。',
       });
       return;
     }

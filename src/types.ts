@@ -12,6 +12,13 @@ export type AsilLevel = 'QM' | 'ASIL A' | 'ASIL B' | 'ASIL C' | 'ASIL D';
 
 export type HwLeadStyle = 'CONSERVATIVE' | 'AGILE_DELIVERY' | 'PROCESS_DEFENSIVE';
 
+export interface CustomerSpecialAgreement {
+  id: string;
+  parameter: string;        // 如: "功率管降额安全系数", "急停制动响应时间", "BOM成本增幅上限"
+  requiredValue: string;    // 如: ">= 1.30 (严于AEC-Q101 1.0)", "<= 250ms", "<= +$0.35"
+  isMandatoryVeto: boolean; // 是否强制触发一票否决
+}
+
 export interface ProjectContext {
   projectName: string;
   productType: string;
@@ -25,6 +32,7 @@ export interface ProjectContext {
   costConstraint: string;
   sampleStatus: string;
   hwLeadStyle?: HwLeadStyle; // 直属领导处理风格与态度倾向
+  customerSpecialAgreements?: CustomerSpecialAgreement[]; // 客户特殊技术协议红线
 }
 
 export type IssueCategory =
@@ -54,6 +62,7 @@ export interface IssueInput {
   environment: string;
   failurePhenomenon: string;
   engineeringConcern: string;
+  recurrenceCount?: number; // 该失效模式/相似问题的历史复发次数 (用于Q维度非线性惩罚与领导免责漂移)
   notes?: string;
   attachments?: {
     id: string;
@@ -82,6 +91,13 @@ export interface DFMEAView {
   safetyImpact: boolean;
   regulatoryImpact: boolean;
   massProductionImpact: boolean;
+  degradationAction?: string; // 降级或容错机制建议
+}
+
+export interface ReferencedStandard {
+  standard: string; // 如 "ISO 26262-5", "AEC-Q100 Rev H", "ISO 16750-2", "CISPR 25"
+  clause: string;   // 如 "Clause 7.4.3", "Table 2", "Section 4.6.2"
+  relevance: string;// 如 "热降额判定依据与器件安全工作区", "辐射发射限值与传导骚扰"
 }
 
 export interface CandidateAction {
@@ -103,6 +119,8 @@ export interface CandidateAction {
     rejection_veto: boolean;
     veto_reason?: string;
   };
+  referenced_standards?: ReferencedStandard[]; // 可追溯的标准条款引用 (P1-3)
+  customerVetoViolations?: string[];           // 击穿的客户特殊特性红线条目 (P1-1)
   riskBefore: string;
   riskAfter: string;
   residualRisk: RiskLevel;
@@ -188,6 +206,68 @@ export interface CustomerConcessionRequest {
   };
 }
 
+export interface PpapDeviationControlPlan {
+  title: string;
+  documentNumber: string;
+  submissionLevel: string; // e.g. "PPAP Level 3 / Level 4"
+  deviationCharacteristic: string;
+  nominalSpecification: string;
+  interimSpecification: string;
+  processPhase: string;
+  inspectionFrequency: string;
+  containmentMethod: string;
+  reactionPlan: string;
+  effectiveBatchOrVinRange: string;
+  closureTargetDate: string;
+  standardReference: string;
+  authorizedSignatures: {
+    sqeManager: string;
+    manufacturingQualityLead: string;
+    programDirector: string;
+  };
+}
+
+export interface SpecialCharacteristicsUpdate {
+  title: string;
+  ecrReferenceNumber: string;
+  characteristicId: string;
+  characteristicType: 'CC (Critical Characteristic / 安全关键特性)' | 'SC (Significant Characteristic / 重要功能特性)';
+  parameterName: string;
+  originalSpec: string;
+  revisedSpec: string;
+  classificationJustification: string;
+  safetyOrComplianceImpact: string;
+  processCapabilityRequirement: string; // e.g. "Cpk >= 1.67, Ppk >= 1.33"
+  pokaYokeMethod: string;
+  standardClauseRef: string;
+  responsibleEngineers: {
+    systemSafetyEngineer: string;
+    hwArchitect: string;
+    dfmeaModerator: string;
+  };
+}
+
+export interface CustomerDeviationRequest {
+  title: string;
+  permitNumber: string;
+  customerName: string;
+  customerContactWindow: string; // 客户接口人 / 窗口姓名与岗位
+  oemPartNumber: string;
+  supplierPartNumber: string;
+  standardClauses: string[]; // 涉及的标准条款 (原样带出)
+  deviationDescription: string;
+  rootCause5WhySummary: string;
+  safetyAndEmcAssessment: string;
+  qualityContainmentCommitment: string;
+  impactOnVehicleAssembly: string;
+  quantityOrDateLimit: string;
+  customerAuthorizationSignOff: {
+    oemCommodityBuyer: string;
+    oemSystemEngineer: string;
+    oemChiefQualityAuditor: string;
+  };
+}
+
 export interface EngineeringDocs {
   pmDecisionEmail: {
     subject: string;
@@ -221,6 +301,9 @@ export interface EngineeringDocs {
   };
   internalDeviationPermit?: InternalDeviationPermit;
   customerConcessionPermit?: CustomerConcessionRequest;
+  ppapDeviationControlPlan?: PpapDeviationControlPlan;
+  specialCharacteristicsUpdate?: SpecialCharacteristicsUpdate;
+  customerDeviationRequest?: CustomerDeviationRequest;
   meetingMinutes: {
     title: string;
     attendees: string;
@@ -251,6 +334,107 @@ export interface EngineeringDocs {
   };
 }
 
+export interface BldcCommutationRisk {
+  controlMode: 'sensorless_bemf' | 'hall_six_step' | 'foc_vector';
+  controlModeLabel: string;
+  speedRangeRpm: [number, number];
+  speedOffsetDeg: number;
+  torqueRippleEstimatePct: number;
+  stallOutProbability: 'low' | 'medium' | 'high';
+  stallOutReason: string;
+  degradationAction: string;
+}
+
+export interface BldcPositionSensorDegradation {
+  sensorType: 'hall_triple' | 'hall_single' | 'optical_encoder' | 'sensorless';
+  sensorTypeLabel: string;
+  redundancyAvailable: boolean;
+  switchingLogic: string;
+  performanceLoss: string;
+  dtcTriggered: string;
+  powerLimitMode: string;
+  dfmeaSeverity: number;
+  dfmeaOccurrence: number;
+  dfmeaDetection: number;
+}
+
+export interface BldcFunctionalSafetyChain {
+  currentSenseDualChannel: {
+    mainChannel: string;
+    monitorChannel: string;
+    toleranceThresholdPct: number;
+    responseTimeLimitUs: number;
+    crossCheckStatus: 'COMPLIANT' | 'WARNING' | 'CRITICAL';
+    diagnosisMechanism: string;
+  };
+  watchdogTiming: {
+    fhtiBudgetMs: number;
+    safeStateTransitionMs: number;
+    wdgTimeoutWindowMs: number;
+    marginMs: number;
+    timingCompliance: 'PASS' | 'CRITICAL';
+  };
+  asilDecomposition: {
+    overallLevel: AsilLevel;
+    mcuSubsystem: string;        // e.g. "ASIL D(B)"
+    gateDriverSubsystem: string; // e.g. "ASIL B"
+    positionSensorSubsystem: string; // e.g. "ASIL B / QM(B)"
+    decompositionProof: string;
+  };
+}
+
+export interface BldcExtendedAnalysis {
+  commutationRisk: BldcCommutationRisk;
+  positionSensorDegradation: BldcPositionSensorDegradation;
+  functionalSafetyChain: BldcFunctionalSafetyChain;
+}
+
+export interface LeaderDriftRule {
+  trigger: string;
+  driftTo: HwLeadStyle;
+  driftStrength: number;
+  reason: string;
+}
+
+export interface LeaderProfile {
+  baseStyle: HwLeadStyle;
+  driftRules: LeaderDriftRule[];
+}
+
+export interface DriftEvaluationResult {
+  baseStyle: HwLeadStyle;
+  effectiveStyle: HwLeadStyle;
+  isDrifted: boolean;
+  driftPrompt?: string;
+  driftTrigger?: string;
+  multiplier: number;
+  acceptanceRatePercent: number;
+  warningTag?: string;
+  positiveTag?: string;
+  reason: string;
+}
+
+export type DebateRole = 'HW' | 'SW' | 'PM' | 'System';
+
+export interface DebateDialogueRound {
+  round: number;
+  role: DebateRole;
+  roleLabel: string;
+  objection: string;
+  hiddenWorry: string;
+  counterRebuttal: string;
+  evidenceReference: string;
+}
+
+export interface DebateSimulationResult {
+  optionId: string;
+  optionName: string;
+  activeRole: DebateRole;
+  rounds: DebateDialogueRound[];
+  summaryGuidance: string;
+  disclaimer: string;
+}
+
 export interface CopilotAnalysisResult {
   coreConclusion: {
     problemSummary: string;
@@ -275,6 +459,7 @@ export interface CopilotAnalysisResult {
     keyPhysicalFactors: PhysicalFactor[];
   };
   dfmeaView: DFMEAView;
+  dfmeaItems?: DFMEAView[]; // 支持多条目 DFMEA 映射 (如位置传感器失效独立条目)
   candidateActions: CandidateAction[];
   finalRecommendation: FinalRecommendation;
   raciMatrix: RaciItem[];
@@ -291,6 +476,7 @@ export interface CopilotAnalysisResult {
     verificationTarget: string;
   };
   engineeringDocs: EngineeringDocs;
+  bldcExtendedAnalysis?: BldcExtendedAnalysis; // BLDC 换相、传感器与功能安全链路扩展 (P0-1)
   source?: 'deterministic-expert' | 'custom-llm' | string;
 }
 
@@ -339,6 +525,7 @@ export type AppTheme = 'dark' | 'light' | 'eyecare';
 
 export type ModelProvider = 
   | 'builtin' 
+  | 'gemini'
   | 'deepseek' 
   | 'qwen' 
   | 'zhipu' 

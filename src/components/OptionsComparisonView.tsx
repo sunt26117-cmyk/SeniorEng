@@ -86,12 +86,24 @@ export const OptionsComparisonView: React.FC<OptionsComparisonViewProps> = ({ re
 
                   {/* Recommendation / VETO Badges */}
                   {isVetoed && (
-                    <div className="mb-3 p-2.5 rounded-lg bg-red-900/30 border border-red-500/50 text-red-300 text-xs flex items-start space-x-2">
-                      <AlertOctagon className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
-                      <div>
-                        <span className="font-bold block">一票否决 (VETO 拦截)</span>
-                        <span className="text-[11px] leading-tight text-red-200">{opt.veto.veto_reason}</span>
+                    <div className="mb-3 p-2.5 rounded-lg bg-red-900/30 border border-red-500/50 text-red-300 text-xs flex flex-col space-y-1.5">
+                      <div className="flex items-start space-x-2">
+                        <AlertOctagon className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+                        <div>
+                          <span className="font-bold block">一票否决 (VETO 拦截)</span>
+                          <span className="text-[11px] leading-tight text-red-200">{opt.veto.veto_reason}</span>
+                        </div>
                       </div>
+                      {opt.customerVetoViolations && opt.customerVetoViolations.length > 0 && (
+                        <div className="bg-red-950/80 border border-red-700/60 rounded px-2 py-1 text-[10px] text-red-300">
+                          <span className="font-bold block text-red-400">触犯客户特殊协议 (CSA) 条款：</span>
+                          <ul className="list-disc list-inside mt-0.5 space-y-0.5">
+                            {opt.customerVetoViolations.map((v, idx) => (
+                              <li key={idx}>{v}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -105,6 +117,20 @@ export const OptionsComparisonView: React.FC<OptionsComparisonViewProps> = ({ re
                   <h3 className="text-sm font-bold text-white mb-2 leading-snug">
                     {opt.name}
                   </h3>
+
+                  {opt.referenced_standards && opt.referenced_standards.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {opt.referenced_standards.map((std, sIdx) => (
+                        <span
+                          key={sIdx}
+                          className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-cyan-300 border border-cyan-800/40 font-mono"
+                          title={std.relevance}
+                        >
+                          {std.standard} {std.clause}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   <p className="text-xs text-slate-300 mb-3 leading-relaxed">
                     {opt.description}

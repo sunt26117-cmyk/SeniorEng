@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CopilotAnalysisResult, CandidateAction, HwLeadStyle } from '../types';
-import { evaluateLeadershipFit } from '../utils/leadershipEngine';
+import { evaluateLeadershipFit, applyRecurrencePenaltyToQ } from '../utils/leadershipEngine';
 import {
   Sliders,
   ShieldAlert,
@@ -17,6 +17,7 @@ import {
   Zap,
   Scale,
   Sparkles,
+  BookOpen,
 } from 'lucide-react';
 
 interface DecisionCockpitViewProps {
@@ -24,6 +25,7 @@ interface DecisionCockpitViewProps {
   onGoToRecommendation: () => void;
   hwLeadStyle?: HwLeadStyle;
   onLeadStyleChange?: (style: HwLeadStyle) => void;
+  recurrenceCount?: number;
 }
 
 export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
@@ -31,6 +33,7 @@ export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
   onGoToRecommendation,
   hwLeadStyle = 'AGILE_DELIVERY',
   onLeadStyleChange,
+  recurrenceCount = 0,
 }) => {
   if (!result) return null;
 
@@ -93,23 +96,29 @@ export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
     return Number((rawS * decayFactor).toFixed(1));
   };
 
-  // 计算综合基准得分 (带时间衰减惩罚)
+  // P1-2: 获取考虑历史复发次数非线性惩罚后的有效 Q 分
+  const getEffectiveQScore = (opt: CandidateAction) => {
+    return applyRecurrencePenaltyToQ(opt.scores.Q, recurrenceCount).effectiveQ;
+  };
+
+  // 计算综合基准得分 (带时间衰减惩罚与历史复发质量衰减)
   const computeBaseScore = (opt: CandidateAction) => {
     if (opt.veto.rejection_veto) return 0;
-    const { T, C, Q, L } = opt.scores;
+    const { T, C, L } = opt.scores;
     const effectiveS = getEffectiveScheduleScore(opt);
+    const effectiveQ = getEffectiveQScore(opt);
     const factor = totalWeight > 0 ? totalWeight : 100;
     const weighted =
-      (T * weights.T + effectiveS * weights.S + C * weights.C + Q * weights.Q + L * weights.L) /
+      (T * weights.T + effectiveS * weights.S + C * weights.C + effectiveQ * weights.Q + L * weights.L) /
       factor;
     return Number(weighted.toFixed(1));
   };
 
-  // 综合得分: Score_final = Score_base * M_lead
+  // 综合得分: Score_final = Score_base * M_lead (包含动态生态漂移判断)
   const computeFinalScore = (opt: CandidateAction) => {
     if (opt.veto.rejection_veto) return 0;
     const base = computeBaseScore(opt);
-    const leadEval = evaluateLeadershipFit(opt, currentLeadStyle);
+    const leadEval = evaluateLeadershipFit(opt, currentLeadStyle, recurrenceCount);
     return Number((base * leadEval.multiplier).toFixed(1));
   };
 
@@ -434,7 +443,8 @@ export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
                 const isTop = rank === 0 && !isVetoed;
                 const hasReSpin = isReSpinOption(opt);
                 const effectiveS = getEffectiveScheduleScore(opt);
-                const leadEval = evaluateLeadershipFit(opt, currentLeadStyle);
+                const effectiveQ = getEffectiveQScore(opt);
+                const leadEval = evaluateLeadershipFit(opt, currentLeadStyle, recurrenceCount);
 
                 return (
                   <tr
@@ -480,6 +490,25 @@ export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
                             {leadEval.positiveTag}
                           </div>
                         )}
+                        {leadEval.driftPrompt && (
+                          <div className="text-[10px] text-purple-300 bg-purple-950/50 border border-purple-800/60 rounded px-1.5 py-0.5 leading-tight flex items-center space-x-1">
+                            <span>🔄 {leadEval.driftPrompt}</span>
+                          </div>
+                        )}
+
+                        {/* 涉及行业标准依据 */}
+                        {opt.referenced_standards && opt.referenced_standards.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-0.5">
+                            {opt.referenced_standards.map((std, sIdx) => (
+                              <span
+                                key={sIdx}
+                                className="text-[9px] font-mono px-1 py-0.2 rounded bg-slate-800/80 border border-slate-700 text-slate-400"
+                              >
+                                {std}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="p-3 text-center font-mono">{opt.scores.T}</td>
@@ -493,7 +522,15 @@ export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
                       )}
                     </td>
                     <td className="p-3 text-center font-mono">{opt.scores.C}</td>
-                    <td className="p-3 text-center font-mono">{opt.scores.Q}</td>
+                    <td className="p-3 text-center font-mono">
+                      {recurrenceCount > 0 && effectiveQ !== opt.scores.Q ? (
+                        <span className="text-amber-400 font-bold" title={`历史复发 ${recurrenceCount} 次非线性加速惩罚：原始 Q=${opt.scores.Q} -> 有效 Q=${effectiveQ}`}>
+                          {effectiveQ} <span className="text-[10px] line-through text-slate-500">{opt.scores.Q}</span>
+                        </span>
+                      ) : (
+                        opt.scores.Q
+                      )}
+                    </td>
                     <td className="p-3 text-center font-mono">{opt.scores.L}</td>
                     
                     {/* 基准得分 */}
@@ -571,9 +608,24 @@ export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
             {result.candidateActions
               .filter((a) => a.veto.rejection_veto)
               .map((vetoed) => (
-                <div key={vetoed.id} className="bg-red-900/20 border border-red-800/40 rounded p-2.5 text-slate-300">
-                  <span className="font-bold text-red-300 mr-2">[{vetoed.id}] {vetoed.name}:</span>
-                  <span className="text-red-200">{vetoed.veto.veto_reason}</span>
+                <div key={vetoed.id} className="bg-red-900/20 border border-red-800/40 rounded p-2.5 text-slate-300 space-y-1.5">
+                  <div>
+                    <span className="font-bold text-red-300 mr-2">[{vetoed.id}] {vetoed.name}:</span>
+                    <span className="text-red-200">{vetoed.veto.veto_reason}</span>
+                  </div>
+                  {vetoed.customerVetoViolations && vetoed.customerVetoViolations.length > 0 && (
+                    <div className="bg-red-950/80 border border-red-700/60 rounded px-2.5 py-1.5 text-[11px] text-red-300 space-y-1">
+                      <div className="font-semibold flex items-center space-x-1">
+                        <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                        <span>触犯客户特殊协议 (CSA) 条款：</span>
+                      </div>
+                      <ul className="list-disc list-inside space-y-0.5 text-red-200 text-[10px]">
+                        {vetoed.customerVetoViolations.map((csaViol, cIdx) => (
+                          <li key={cIdx}>{csaViol}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               ))}
           </div>

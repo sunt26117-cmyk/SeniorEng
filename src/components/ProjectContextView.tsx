@@ -259,6 +259,41 @@ export const ProjectContextView: React.FC<ProjectContextViewProps> = ({
           </div>
         </div>
 
+        {/* 客户特殊技术/商务协议 (Customer Special Agreements - CSA / 硬约束否决线) */}
+        <div className="mt-5 pt-4 border-t border-slate-800/80">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+            <label className="text-slate-300 font-semibold flex items-center text-xs">
+              <ShieldCheck className="w-4 h-4 mr-1.5 text-blue-400" />
+              客户特殊协议与不可妥协约束 (Customer Special Agreements / Hard Veto Gates)
+            </label>
+            <span className="text-[11px] text-slate-400">
+              触发条款时将在 CTSQL 评估中激活【一票否决 (Veto)】与违约警报
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 mb-2">
+            {(context.customerSpecialAgreements || []).map((csa) => (
+              <div
+                key={csa.id}
+                className="bg-slate-800/80 border border-slate-700/80 rounded-lg p-2.5 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-mono text-[10px] text-blue-400 font-bold">{csa.id}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-950/80 text-red-300 border border-red-800/60 font-semibold">
+                      强制否决红线
+                    </span>
+                  </div>
+                  <div className="text-xs font-medium text-slate-200">{csa.parameter}</div>
+                </div>
+                <div className="mt-2 text-[11px] text-amber-400 font-mono font-medium bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
+                  指标门限: {csa.requiredValue}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* 关键决策维度：直属领导处理风格与态度倾向 (Leadership Profile) */}
         <div className="mt-5 pt-4 border-t border-slate-800/80">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
@@ -465,6 +500,50 @@ export const ProjectContextView: React.FC<ProjectContextViewProps> = ({
               className="w-full bg-slate-800 border border-slate-700 rounded-md p-2.5 text-white focus:border-blue-500 focus:outline-none"
               placeholder="例如：距离 DV 仅剩 2 周无法重新改版，但直接用正式金属外壳测试又有失败风险；或器件升级 +$1.50 超出预算"
             />
+          </div>
+
+          {/* 历史复发次数与质量惩罚机制 (Recurrence Count & Non-linear Q-penalty) */}
+          <div className="bg-slate-800/60 border border-slate-700/70 rounded-lg p-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+              <label className="text-slate-300 font-semibold flex items-center text-xs">
+                <AlertCircle className="w-4 h-4 mr-1.5 text-amber-400" />
+                该失效模式历史复发次数 (Historical Recurrence Count)
+              </label>
+              <div className="flex items-center space-x-2">
+                <span className="text-[11px] text-slate-400">质量 Q 分非线性惩罚:</span>
+                <span className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded ${
+                  (issue.recurrenceCount || 0) === 0
+                    ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60'
+                    : (issue.recurrenceCount || 0) === 1
+                    ? 'bg-amber-950/80 text-amber-400 border border-amber-800/60'
+                    : 'bg-red-950/80 text-red-400 border border-red-800/60'
+                }`}>
+                  {(issue.recurrenceCount || 0) === 0 ? '1.0x (首发无罚)' : (issue.recurrenceCount || 0) === 1 ? '0.85x (-15%)' : (issue.recurrenceCount || 0) === 2 ? '0.65x (-35%)' : '0.40x (-60% 严重降级)'}
+                </span>
+                {(issue.recurrenceCount || 0) >= 2 && (
+                  <span className="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 font-semibold">
+                    触发生态漂移: 流程免责型
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <input
+                type="range"
+                min="0"
+                max="5"
+                step="1"
+                value={issue.recurrenceCount || 0}
+                onChange={(e) => setIssue({ ...issue, recurrenceCount: parseInt(e.target.value) || 0 })}
+                className="flex-1 accent-amber-500 cursor-pointer"
+              />
+              <span className="font-mono text-xs font-bold text-white bg-slate-900 px-2.5 py-1 rounded border border-slate-700 min-w-[50px] text-center">
+                {issue.recurrenceCount || 0} 次
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-2">
+              当该类质量缺陷在量产前多次重复发生 (&ge; 2 次)，质量惩罚呈非线性急剧加深，直属领导将启动“避险防御”自动向【流程免责型 (PROCESS_DEFENSIVE)】漂移，倒逼工程团队彻底根治。
+            </p>
           </div>
 
           {/* Attachments / Data Files Upload */}

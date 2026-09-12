@@ -33,7 +33,16 @@ export const EngineeringDocsView: React.FC<EngineeringDocsViewProps> = ({ result
   const { engineeringDocs, finalRecommendation, raciMatrix } = result;
 
   const [activeDoc, setActiveDoc] = useState<
-    'email' | 'internal_permit' | 'customer_concession' | 'minutes' | 'risk' | 'dfmea' | 'ecr'
+    | 'email'
+    | 'internal_permit'
+    | 'customer_concession'
+    | 'ppap_plan'
+    | 'special_char'
+    | 'customer_cdr'
+    | 'minutes'
+    | 'risk'
+    | 'dfmea'
+    | 'ecr'
   >('email');
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -257,6 +266,100 @@ ECR 编号: ECR-HW-${new Date().getFullYear()}-047
 `;
   };
 
+  const generatePpapPlanText = () => {
+    const pp = engineeringDocs.ppapDeviationControlPlan;
+    if (!pp) {
+      return `【PPAP 临时工程偏差控制计划】\n当前场景未配置 PPAP 偏差控制计划。`;
+    }
+    return `======================================================================
+    【PPAP 临时工程偏差控制计划 (PPAP DEVIATION CONTROL PLAN)】
+    标准对标: ${pp.standardReference} | 提交等级: ${pp.submissionLevel}
+======================================================================
+文件编号: ${pp.documentNumber}
+工程阶段: ${pp.processPhase}
+有效批次/VIN范围: ${pp.effectiveBatchOrVinRange}
+关闭目标日期: ${pp.closureTargetDate}
+
+【1. 偏差特性与产品技术指标对比】
+- 受控特性项: ${pp.deviationCharacteristic}
+- 标称标准技术要求: ${pp.nominalSpecification}
+- 临时让步技术边界: ${pp.interimSpecification}
+
+【2. 制造过程围堵与高频抽检门禁 (Process Containment)】
+- 现场检验频次: ${pp.inspectionFrequency}
+- 临时防呆与改制工艺: ${pp.containmentMethod}
+- 异常反应计划 (Reaction Plan): ${pp.reactionPlan}
+
+【3. 质量与产品工程授权签核 (Sign-off)】
+- 供应商质量保证主管 (SQE): ${pp.authorizedSignatures.sqeManager}
+- 制造工厂质量总监 (Plant Quality): ${pp.authorizedSignatures.manufacturingQualityLead}
+- 项目研发总监 (Program Director): ${pp.authorizedSignatures.programDirector}
+`;
+  };
+
+  const generateSpecialCharText = () => {
+    const sc = engineeringDocs.specialCharacteristicsUpdate;
+    if (!sc) {
+      return `【特殊特性清单 (SC/CC) 变更对齐单】\n当前场景未配置特殊特性清单变更单。`;
+    }
+    return `======================================================================
+    【特殊特性清单 (SC/CC) 变更对齐单 (SPECIAL CHARACTERISTICS UPDATE)】
+    标准依据: ${sc.standardClauseRef} | 关联变更: ${sc.ecrReferenceNumber}
+======================================================================
+特性编号: ${sc.characteristicId}
+特性分类: ${sc.characteristicType}
+受控参数名称: ${sc.parameterName}
+
+【1. 特性分类依据与安全法规影响】
+- 分类理由: ${sc.classificationJustification}
+- 安全/法规/排放影响: ${sc.safetyOrComplianceImpact}
+
+【2. 技术指标变更对比】
+- 原始规范指标 (Original Spec): ${sc.originalSpec}
+- 更新后规范指标 (Revised Spec): ${sc.revisedSpec}
+
+【3. 过程能力与制造现场防呆控制 (Poka-Yoke)】
+- 统计过程能力目标: ${sc.processCapabilityRequirement}
+- 产线防呆与拦截方法: ${sc.pokaYokeMethod}
+
+【4. 多功能团队责任工程师确认】
+- 功能安全主管 (Safety Lead): ${sc.responsibleEngineers.systemSafetyEngineer}
+- 硬件主任架构师 (HW Architect): ${sc.responsibleEngineers.hwArchitect}
+- DFMEA 协调主持人 (DFMEA Facilitator): ${sc.responsibleEngineers.dfmeaModerator}
+`;
+  };
+
+  const generateCustomerCdrText = () => {
+    const cdr = engineeringDocs.customerDeviationRequest;
+    if (!cdr) {
+      return `【主机厂正式工程偏差申请单】\n当前场景未配置主机厂正式工程偏差申请单。`;
+    }
+    return `======================================================================
+    【主机厂正式工程偏差申请单 (CUSTOMER DEVIATION REQUEST - CDR)】
+    单据编号: ${cdr.permitNumber}
+======================================================================
+客户全称: ${cdr.customerName}
+对接窗口: ${cdr.customerContactWindow}
+主机厂零件号: ${cdr.oemPartNumber} | 供应商零件号: ${cdr.supplierPartNumber}
+
+【1. 对标法律法规与行业标准条款】
+${cdr.standardClauses.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}
+
+【2. 偏差申请内容与工艺替代说明】
+${cdr.deviationDescription}
+
+【3. 5-Why 根本原因分析与物理机理解析】
+${cdr.rootCause5WhySummary}
+
+【4. 功能安全、EMC 与全寿命可靠性影响综合论证】
+${cdr.safetyAndEmcAssessment}
+
+【5. 质量围堵承诺与整车装配影响】
+- 质量遏制与批次追踪: ${cdr.qualityContainmentCommitment}
+- 整车总装与产线接口影响: ${cdr.impactOnVehicleAssembly}
+`;
+  };
+
   const docTabs = [
     {
       id: 'email',
@@ -277,6 +380,24 @@ ECR 编号: ECR-HW-${new Date().getFullYear()}-047
       desc: '对标 VDA 6.3 / IATF 16949、5-Why 根因剖析、全温区剖面与切点',
     },
     {
+      id: 'ppap_plan',
+      label: 'PPAP 临时偏差控制计划 (PPAP Control Plan)',
+      icon: Layers,
+      desc: 'AIAG PPAP 4th / VDA 2、临时让步边界、100% 检验与反应计划',
+    },
+    {
+      id: 'special_char',
+      label: '特殊特性清单变更对齐单 (SC/CC Update)',
+      icon: AlertTriangle,
+      desc: 'CC 安全关键特性对齐、Cpk>=1.67、MES 自动化防呆门禁',
+    },
+    {
+      id: 'customer_cdr',
+      label: '主机厂正式偏差申请单 (Customer CDR)',
+      icon: FileCheck,
+      desc: '依据 ISO 26262 / CISPR 25、整车总装零影响评估与批次追溯',
+    },
+    {
       id: 'minutes',
       label: '技术对齐与决议纪要 (Meeting Minutes)',
       icon: Users,
@@ -291,7 +412,7 @@ ECR 编号: ECR-HW-${new Date().getFullYear()}-047
     {
       id: 'ecr',
       label: '工程变更申请书 (ECR Form)',
-      icon: FileCheck,
+      icon: FileText,
       desc: '规范走 ECR 流程，明确模具成本与交付周期',
     },
   ];
@@ -454,6 +575,87 @@ ECR 编号: ECR-HW-${new Date().getFullYear()}-047
 
             <div className="bg-slate-950 p-4 rounded-xl border border-blue-500/30 font-mono leading-relaxed whitespace-pre-wrap text-slate-200 text-xs select-text">
               {generateCustomerConcessionText()}
+            </div>
+          </div>
+        )}
+
+        {/* 3.1 PPAP 临时工程偏差控制计划 */}
+        {activeDoc === 'ppap_plan' && (
+          <div className="space-y-4 text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+              <div>
+                <span className="font-bold text-sm text-cyan-400 block">
+                  PPAP 临时工程偏差控制计划 (PPAP Deviation Control Plan)
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  符合 AIAG PPAP 4th / VDA 2 体系：明确临时让步技术要求、现场高频抽检门禁与异常反应计划 (Reaction Plan)
+                </span>
+              </div>
+              <button
+                onClick={() => handleCopy(generatePpapPlanText(), 'ppap_plan')}
+                className="px-3.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition cursor-pointer flex items-center space-x-1.5 font-medium shadow-sm"
+              >
+                {copiedKey === 'ppap_plan' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedKey === 'ppap_plan' ? '已复制 PPAP 控制计划' : '复制 PPAP 偏差控制计划'}</span>
+              </button>
+            </div>
+
+            <div className="bg-slate-950 p-4 rounded-xl border border-cyan-500/30 font-mono leading-relaxed whitespace-pre-wrap text-slate-200 text-xs select-text">
+              {generatePpapPlanText()}
+            </div>
+          </div>
+        )}
+
+        {/* 3.2 特殊特性清单 SC/CC 变更对齐单 */}
+        {activeDoc === 'special_char' && (
+          <div className="space-y-4 text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+              <div>
+                <span className="font-bold text-sm text-amber-400 block">
+                  特殊特性清单 (SC/CC) 变更对齐单 (Special Characteristics Update)
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  锁定 CC/SC 安全关键特性指标、Cpk &gt;= 1.67 过程能力目标与 MES 自动化防呆机制 (Poka-Yoke)
+                </span>
+              </div>
+              <button
+                onClick={() => handleCopy(generateSpecialCharText(), 'special_char')}
+                className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition cursor-pointer flex items-center space-x-1.5 font-medium shadow-sm"
+              >
+                {copiedKey === 'special_char' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedKey === 'special_char' ? '已复制特殊特性对齐单' : '复制特殊特性变更对齐单'}</span>
+              </button>
+            </div>
+
+            <div className="bg-slate-950 p-4 rounded-xl border border-amber-500/30 font-mono leading-relaxed whitespace-pre-wrap text-slate-200 text-xs select-text">
+              {generateSpecialCharText()}
+            </div>
+          </div>
+        )}
+
+        {/* 3.3 主机厂正式工程偏差申请单 (Customer CDR) */}
+        {activeDoc === 'customer_cdr' && (
+          <div className="space-y-4 text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+              <div>
+                <span className="font-bold text-sm text-emerald-400 block">
+                  主机厂正式工程偏差申请单 (Customer Deviation Request - CDR)
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  严密依据 ISO 26262 / CISPR 25 法规、包含 5-Why 深度推导、整车装配影响及质量遏制承诺
+                </span>
+              </div>
+              <button
+                onClick={() => handleCopy(generateCustomerCdrText(), 'customer_cdr')}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition cursor-pointer flex items-center space-x-1.5 font-medium shadow-sm"
+              >
+                {copiedKey === 'customer_cdr' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedKey === 'customer_cdr' ? '已复制 CDR 申请单' : '复制主机厂 CDR 申请单'}</span>
+              </button>
+            </div>
+
+            <div className="bg-slate-950 p-4 rounded-xl border border-emerald-500/30 font-mono leading-relaxed whitespace-pre-wrap text-slate-200 text-xs select-text">
+              {generateCustomerCdrText()}
             </div>
           </div>
         )}

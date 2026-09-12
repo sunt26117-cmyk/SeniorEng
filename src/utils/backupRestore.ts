@@ -104,10 +104,10 @@ export function exportMarkdownReport(
   md += `---\n\n`;
   md += `## 1. 核心技术事实与失效描述\n\n`;
   md += `- **失效分类**：${issue.issueCategories.join(', ')}\n`;
-  md += `- **标准规范要求**：${issue.specRequirement}\n`;
+  md += `- **标准规范要求**：${issue.requirement}\n`;
   md += `- **实际量测数据**：${issue.actualMeasurement}\n`;
   md += `- **试验边界工况**：${issue.testCondition}\n`;
-  md += `- **失效模式表现**：${issue.failureSymptom}\n`;
+  md += `- **失效模式表现**：${issue.failurePhenomenon}\n`;
   md += `- **核心顾虑 (Concern)**：${issue.engineeringConcern}\n\n`;
 
   if (result) {
@@ -115,7 +115,7 @@ export function exportMarkdownReport(
     md += `- **根本原因推导**：${result.coreConclusion.problemSummary}\n`;
     md += `- **首要推荐策略**：${result.coreConclusion.recommendedMeasure}\n`;
     md += `- **综合决策逻辑**：${result.coreConclusion.reasonSummary}\n`;
-    md += `- **整体技术风险评级**：${result.riskRatings.overallRisk} (发生度: ${result.riskRatings.occurrenceLikelihood} / 严重度: ${result.riskRatings.severityLevel})\n\n`;
+    md += `- **整体技术风险评级**：${result.riskRatings.overallRisk} (发生度: ${result.dfmeaView?.occurrence ?? '-'} / 严重度: ${result.dfmeaView?.severity ?? '-'} / 风险分: ${result.riskRatings.overallRiskScore})\n\n`;
 
     md += `## 3. C-T-S-Q-L 候选方案综合权衡表\n\n`;
     md += `| 排名 | 方案名称 | 类型 | T技术 | S工期 | C成本 | Q质量 | L责任 | 综合基准分 | 领导过关评估 |\n`;

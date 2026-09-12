@@ -164,6 +164,26 @@ export const PRESET_SCENARIOS: PresetScenario[] = [
       daysRemaining: 15,
       costConstraint: 'No high-end smart power stage allowed, BOM cap +$0.35',
       sampleStatus: 'B Sample functional prototype on long harness rig',
+      customerSpecialAgreements: [
+        {
+          id: 'CSA-01',
+          parameter: '急停制动响应时间 (座舱防夹安全红线)',
+          requiredValue: '<= 250ms (ASIL B 强制法规红线)',
+          isMandatoryVeto: true,
+        },
+        {
+          id: 'CSA-02',
+          parameter: '单板 BOM 增量限额',
+          requiredValue: '<= +$0.35 (超出触发商业让步拒收)',
+          isMandatoryVeto: true,
+        },
+        {
+          id: 'CSA-03',
+          parameter: 'DV 试验样件改制交付周期',
+          requiredValue: '<= 15 天 (逾期将触发整车联调里程碑违约)',
+          isMandatoryVeto: true,
+        },
+      ],
     },
     issue: {
       issueCategories: ['BLDC Motor Drive', 'Power', 'Reliability', 'EMC', 'Functional Safety'],
@@ -173,6 +193,7 @@ export const PRESET_SCENARIOS: PresetScenario[] = [
       environment: '座舱密闭发泡海绵温区 (85℃ 环境)',
       failurePhenomenon: '电机急停时偶发预驱芯片过压保护锁死 (OVP Triggered)；下桥管在反向对管高速开通时发热异常偏高；48MHz 频段传导骚扰毛刺显著。',
       engineeringConcern: '距离 DV 仅剩 15 天。若盲目加大母线电解电容，PCB 空间受限且高温寿命堪忧；若不解决米勒感应电压，125℃ 高温时 V_th 进一步漂移衰减必然发生同桥臂直通炸管！团队急需一套涵盖母线吸收制动、米勒钳位阻抗重构及 RC Snubber 参数计算的完整工程闭环方案。',
+      recurrenceCount: 0,
       notes: '必须从物理机理出发：转动动能向电容倒灌模型、米勒位移电流 Im = Cgd * dv/dt、以及 Foster 4阶热网络评估堵转温升，严禁在未做抑制前擅自放宽保护门限。',
     },
   },
