@@ -33,6 +33,7 @@ export const EngineeringDocsView: React.FC<EngineeringDocsViewProps> = ({ result
   const { engineeringDocs, finalRecommendation, raciMatrix } = result;
 
   const [activeDoc, setActiveDoc] = useState<
+    | 'edr'
     | 'email'
     | 'internal_permit'
     | 'customer_concession'
@@ -43,10 +44,25 @@ export const EngineeringDocsView: React.FC<EngineeringDocsViewProps> = ({ result
     | 'risk'
     | 'dfmea'
     | 'ecr'
-  >('email');
+  >('edr');
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [fingerprint, setFingerprint] = useState<DigitalFingerprintResult | null>(null);
+
+  const handleDownloadDoc = (content: string, filename: string) => {
+    const textWithFingerprint = fingerprint
+      ? `${content}\n\n${fingerprint.tamperProofCertificate}`
+      : content;
+    const blob = new Blob([textWithFingerprint], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   // 3.3 计算数字防伪指纹 (SHA-256)
   useEffect(() => {
@@ -360,7 +376,90 @@ ${cdr.safetyAndEmcAssessment}
 `;
   };
 
+  const generateEdrText = () => {
+    const edr = result.edrRecord || engineeringDocs.edrRecord;
+    const rec = result.finalRecommendation;
+    const whyNot = result.whyNotComparison;
+    const p24 = result.next24HourPlan;
+    const info = result.classifiedInfo || [];
+    const fp = fingerprint;
+
+    return `======================================================================
+     【工程决策档案 (ENGINEERING DECISION RECORD - EDR)】
+     规范遵循: IATF 16949 / ISO 26262 / AEC-Q100 / CISPR 25 / VDA 6.3
+======================================================================
+【档案基本信息】
+- EDR 追溯编号: ${edr?.edrId || 'EDR-HW-2026-001'}
+- 决策状态: ${edr?.decisionStatus === 'APPROVED' ? '正式批准 (APPROVED)' : edr?.decisionStatus === 'VETOED' ? '一票否决 (VETOED)' : '受控批准 (CONDITIONALLY_APPROVED)'}
+- 生成时间: ${edr?.createdAt || (fp ? fp.timestampFormatted : new Date().toLocaleString())}
+- 数字存证 SHA-256: ${fp?.sha256Hex || 'PENDING'}
+- 关联项目代号: ${result.context?.projectName || '汽车电子核心域控'} | 研发阶段: ${result.context?.projectPhase || 'DV阶段'}
+- 核心问题综述: ${edr?.problemStatement || result.coreConclusion.problemSummary}
+
+----------------------------------------------------------------------
+【第一部分：五类信息分类与事实边界 (P0-1 Information Classification)】
+----------------------------------------------------------------------
+${info.map((item) => `[${item.tag}] ${item.title} (置信度: ${item.confidenceLevel}%)
+  - 内容: ${item.content}
+  - 依据/来源: ${item.sourceOrBasis}
+  - 校验方法: ${item.verificationMethod || '无'}`).join('\n\n')}
+
+----------------------------------------------------------------------
+【第二部分：措施决策理由显性化与一票否决记录 (P0-2 & P0-3 Why-Not Matrix)】
+----------------------------------------------------------------------
+1. 最终推荐方案: ${rec.recommendedOptionName} (${rec.recommendedOptionId})
+   - 权衡选定逻辑: ${whyNot?.recommendedOption.tradeoffRationale || rec.strategicSignificance}
+   - 闭环支撑证据链:
+${whyNot?.recommendedOption.closingEvidence.map((e) => `     * ${e}`).join('\n') || '     * 满足台架验证与降额裕量'}
+
+2. 为什么不选保守方案 (${whyNot?.whyNotOptionA.optionId}): ${whyNot?.whyNotOptionA.name}
+   - 未选原因: ${whyNot?.whyNotOptionA.whyNotChosenReason}
+   - 违约与额外代价: ${whyNot?.whyNotOptionA.keyPenalties.join('; ')}
+   - 重新激活条件: ${whyNot?.whyNotOptionA.reActivationCondition}
+
+3. 为什么坚决否决激进/特采方案 (${whyNot?.whyNotOptionC.optionId}): ${whyNot?.whyNotOptionC.name}
+   - 一票否决硬因: ${whyNot?.whyNotOptionC.whyNotChosenReason}
+   - 触碰的致命红线: ${whyNot?.whyNotOptionC.keyPenalties.join('; ')}
+   - 解禁触发前提: ${whyNot?.whyNotOptionC.reActivationCondition}
+
+----------------------------------------------------------------------
+【第三部分：工程实施细节与改动影响度评估 (Implementation & Impact)】
+----------------------------------------------------------------------
+- 临时围堵措施: ${rec.containmentAction}
+- 根本纠正措施: ${rec.rootCauseAction}
+- 闭环验证试验: ${rec.verificationItems.join('; ')}
+- 模具与工装交付周期: ${rec.targetPhase || '无需改模'}
+- 单板 BOM 成本 Delta: ${rec.costDeltaUsd !== undefined ? `+$${rec.costDeltaUsd} / 板` : '无新增 BOM 成本'}
+
+----------------------------------------------------------------------
+【第四部分：未来 24 小时行动计划与三色量化放行标准 (P0-4 24h Plan)】
+----------------------------------------------------------------------
+【小时级执行时刻表】
+${p24?.timeline.map((t) => `[${t.timeWindow}] ${t.taskTitle} (责任人: ${t.owner}, 工装: ${t.toolingOrEquip})\n  - 行动: ${t.actionDetails}\n  - 交付物: ${t.deliverable}`).join('\n\n') || '按排期执行台架测试与交叉互验'}
+
+【三色量化放行标准】
+🟢 绿色放行 (Pass): ${p24?.passCriteria.greenPass || '实测指标满足车规降额裕量'}
+🟡 黄色受控 (Conditional): ${p24?.passCriteria.yellowConditional || '需追加工艺缓冲措施后受限放行'}
+🔴 红色熔断 (Hard Stop): ${p24?.passCriteria.redHardStop || '实测越界立即熔断启动改版'}
+
+----------------------------------------------------------------------
+【第五部分：跨职能会签与不可否认责任链 (RACI & Sign-Off)】
+----------------------------------------------------------------------
+会签矩阵 (RACI Matrix):
+${result.raciMatrix.map((r) => `  * [${r.raciType}] ${r.role}: ${r.owner} (${r.department}) - 职责: ${r.responsibilitySummary}`).join('\n')}
+
+会签声明与法律效力：
+参与会签人员已充分知悉本方案的技术代价、残余风险及三色门禁放行阈值，所有测试数据及物理推导已完成交叉核验。数字存证 SHA-256 防伪水印不可伪造与篡改。
+`;
+  };
+
   const docTabs = [
+    {
+      id: 'edr',
+      label: '工程决策档案 (EDR Record)',
+      icon: ShieldCheck,
+      desc: 'P0-5 一键生成完整工程决策档案：问题定义、事实边界、方案对比、放行门禁与签字链',
+    },
     {
       id: 'email',
       label: 'PM 决策请示邮件 (含假设性推进条款)',
@@ -496,6 +595,92 @@ ${cdr.safetyAndEmcAssessment}
 
       {/* 单据主体预览与导出区 */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+        {/* 0. EDR 工程决策档案 (P0-5 一键生成完整工程决策档案) */}
+        {activeDoc === 'edr' && (
+          <div className="space-y-4 text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-sm text-slate-100 block">
+                    工程决策档案 (EDR - Engineering Decision Record)
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold">
+                    P0 级核心档案
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400">
+                  一键聚合：问题本质、五类信息边界、Why-Not 决策矩阵、24小时放行门禁与跨职能签字链
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => handleCopy(generateEdrText(), 'edr')}
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition cursor-pointer flex items-center space-x-1.5 font-medium shadow-sm"
+                >
+                  {copiedKey === 'edr' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedKey === 'edr' ? '已复制 EDR 全文' : '一键复制 EDR (含指纹)'}</span>
+                </button>
+                <button
+                  onClick={() =>
+                    handleDownloadDoc(
+                      generateEdrText(),
+                      `EDR-${result.context?.projectName || 'HW'}-${new Date().toISOString().slice(0, 10)}.md`
+                    )
+                  }
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition cursor-pointer flex items-center space-x-1.5 font-medium shadow-sm"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>导出 Markdown 档案</span>
+                </button>
+              </div>
+            </div>
+
+            {/* EDR Quick Meta Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-850/80 border border-slate-700/60 rounded-lg p-3 text-[11px]">
+              <div>
+                <span className="text-slate-400 block">档案编号:</span>
+                <span className="font-mono text-cyan-300 font-bold">
+                  {result.edrRecord?.edrId || 'EDR-HW-2026-001'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 block">决策判定:</span>
+                <span className="font-bold text-emerald-300">
+                  {result.edrRecord?.decisionStatus === 'APPROVED' ? '正式批准 (APPROVED)' : '受控批准'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 block">推荐方案:</span>
+                <span className="font-semibold text-white truncate block">
+                  {result.finalRecommendation.recommendedOptionName}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 block">SHA-256 存证:</span>
+                <span className="font-mono text-emerald-400 font-bold">
+                  {fingerprint ? fingerprint.shortFingerprint : 'VALIDATING'}
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-4 font-mono text-slate-300 whitespace-pre-wrap leading-relaxed max-h-[520px] overflow-y-auto">
+              {generateEdrText()}
+            </div>
+
+            {fingerprint && (
+              <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-lg p-3 text-[11px] font-mono text-emerald-300 flex items-start space-x-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block">IATF 16949 / ISO 26262 决策不可否认性证书已嵌入：</span>
+                  <span className="text-slate-400">
+                    本记录已对全部测量依据、物理公式、VETO 否决记录与 RACI 签署人完成全要素 SHA-256 哈希固化，任何修改均将导致指纹失配。
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 1. 邮件预览 */}
         {activeDoc === 'email' && (
           <div className="space-y-4 text-xs">

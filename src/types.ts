@@ -3,6 +3,9 @@ export type ProjectPhase =
   | 'A Sample'
   | 'B Sample'
   | 'C Sample'
+  | 'EVT'
+  | 'DVT'
+  | 'PVT'
   | 'DV'
   | 'PV'
   | 'SOP'
@@ -64,12 +67,18 @@ export interface IssueInput {
   engineeringConcern: string;
   recurrenceCount?: number; // 该失效模式/相似问题的历史复发次数 (用于Q维度非线性惩罚与领导免责漂移)
   notes?: string;
-  attachments?: {
-    id: string;
-    name: string;
-    type: string;
-    size: string;
-  }[];
+  attachments?: IssueAttachment[];
+}
+
+export interface IssueAttachment {
+  id: string;
+  name: string;
+  type: string;
+  size: string;
+  dataUrl?: string;
+  textSample?: string;
+  rowCount?: number;
+  uploadedAt?: string;
 }
 
 export type RiskLevel = 'High' | 'Medium-High' | 'Medium' | 'Low';
@@ -100,6 +109,89 @@ export interface ReferencedStandard {
   relevance: string;// 如 "热降额判定依据与器件安全工作区", "辐射发射限值与传导骚扰"
 }
 
+export type InformationTag = 'MEASURED' | 'SPEC' | 'CALCULATED' | 'ASSUMPTION' | 'UNKNOWN';
+
+export interface ClassifiedInfoItem {
+  id: string;
+  tag: InformationTag;
+  title: string;
+  content: string;
+  sourceOrBasis: string; // 证据来源或标准出处，例如 "示波器Tektronix实测波形 #CH1", "CISPR 25 Table 4", "Foster Rth 公式计算"
+  confidenceLevel: number; // 0-100%
+  verificationMethod?: string;
+}
+
+export interface RiskDimensionScore {
+  name: string;
+  dimensionKey: 'techMargin' | 'reliabilityStress' | 'scheduleDelay' | 'redesignCost' | 'verificationGap';
+  score: number; // 0-100 (分数越高，风险越大)
+  level: RiskLevel;
+  evidence: string;
+}
+
+export interface MultiDimensionalRiskBreakdown {
+  techMargin: RiskDimensionScore;
+  reliabilityStress: RiskDimensionScore;
+  scheduleDelay: RiskDimensionScore;
+  redesignCost: RiskDimensionScore;
+  verificationGap: RiskDimensionScore;
+}
+
+export interface WhyNotComparisonItem {
+  optionId: string;
+  optionName: string;
+  categoryLabel: string;
+  isRecommended: boolean;
+  verdictTitle: string; // "为什么选它" 或 "为什么不选它"
+  coreTradeoffReason: string; // 核心权衡理由
+  keyRiskOrPenalty: string;   // 关键风险或惩罚项
+  reActivationCondition: string; // 在何种极端条件下会重新考虑此方案
+}
+
+export interface HourlyActionItem {
+  timeWindow: string; // e.g. "08:30 - 10:00"
+  phase: string;
+  task: string;
+  owner: string;
+  deliverable: string;
+}
+
+export interface PassFailCriteria {
+  parameter: string;
+  greenCriteria: string; // 放行准予推进区间
+  yellowCriteria: string;// 警戒扩大样本区间
+  redCriteria: string;   // 熔断触发 Plan B 区间
+}
+
+export interface Next24HourPlan {
+  timeline: HourlyActionItem[];
+  passFailCriteria: PassFailCriteria[];
+}
+
+export interface EngineeringDecisionRecord {
+  edrId: string;
+  projectCode: string;
+  decisionDate: string;
+  decisionMaker: string;
+  coreProblem: string;
+  measuredSnapshot: string;
+  specThreshold: string;
+  engineeringAssumptions: string[];
+  chosenOptionId: string;
+  chosenOptionTitle: string;
+  rejectedOptionsSummary: string;
+  defenseBasis: string;
+  signOffSignatures: { role: string; name: string; status: 'Signed' | 'Pending'; signDate: string }[];
+  localHashDigest: string;
+}
+
+export interface RedTeamAuditChallenge {
+  auditVerdict: string;
+  riskGaps: string[];
+  missingEvidenceList: string[];
+  confidenceScorePct: number;
+}
+
 export interface CandidateAction {
   id: string; // 'Option A', 'Option B', 'Option C', 'Option D'
   category: 'conservative' | 'balanced' | 'schedule_priority' | 'alternative';
@@ -118,6 +210,13 @@ export interface CandidateAction {
   veto: {
     rejection_veto: boolean;
     veto_reason?: string;
+    veto_type?: 'SOA_BREACH' | 'ABSOLUTE_MAX_VIOLATION' | 'SAFETY_GOAL_BREACH' | 'SCHEDULE_COLLAPSE' | 'CUSTOMER_CSA_VETO' | 'UNVERIFIED_SPEC_GAMBLE' | 'NONE';
+  };
+  changeImpact?: {
+    costChange: string;
+    scheduleLeadTime: string;
+    impedanceOrSignalImpact: string;
+    emcThermalRipple: string;
   };
   referenced_standards?: ReferencedStandard[]; // 可追溯的标准条款引用 (P1-3)
   customerVetoViolations?: string[];           // 击穿的客户特殊特性红线条目 (P1-1)
@@ -332,6 +431,7 @@ export interface EngineeringDocs {
     toolingLeadTime: string;
     impactAssessment: string;
   };
+  edrRecord?: EngineeringDecisionRecord;
 }
 
 export interface BldcCommutationRisk {
@@ -477,7 +577,25 @@ export interface CopilotAnalysisResult {
   };
   engineeringDocs: EngineeringDocs;
   bldcExtendedAnalysis?: BldcExtendedAnalysis; // BLDC 换相、传感器与功能安全链路扩展 (P0-1)
+  classifiedInfo?: ClassifiedInfoItem[]; // 严格区分信息类型 (P0-1)
+  multiRiskBreakdown?: MultiDimensionalRiskBreakdown; // 去黑箱化多维风险细分 (P0-2)
+  whyNotComparison?: WhyNotComparisonItem[]; // 措施决策理由显性化三栏对比 (P0-3)
+  next24HourPlan?: Next24HourPlan; // 未来24小时行动计划与量化标准 (P0-4)
+  edrRecord?: EngineeringDecisionRecord; // 工程决策单 EDR 标准记录 (P0-5)
+  redTeamChallenge?: RedTeamAuditChallenge; // 逆向质疑与盲区挑战 (P1)
   source?: 'deterministic-expert' | 'custom-llm' | string;
+  provenance?: ResultProvenance; // 结果来源透明度标注：明确区分 AI 发散推理 vs 车规专家确定性模版/物理公式
+}
+
+export interface ResultProvenance {
+  executionMode: 'PURE_OFFLINE_LOCAL' | 'ONLINE_AI_INFERRED' | 'HYBRID_VERIFIED';
+  engineName: string; // e.g. "车规确定性专家引擎 (纯离线运行)" 或 "DeepSeek-V3 云端大模型推理"
+  isAiInferred: boolean; // 是否为大模型发散推演结果
+  isDeterministicRule: boolean; // 是否为确定性专家规则/物理公式库计算结果
+  generatedAt: string;
+  latencyMs?: number;
+  modelIdentifier?: string;
+  transparencyNote: string;
 }
 
 export interface PresetScenario {
@@ -545,4 +663,5 @@ export interface ModelApiConfig {
 }
 
 export * from './types/motorDrive';
+export * from './types/v4Models';
 

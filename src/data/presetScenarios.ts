@@ -3,7 +3,7 @@ import { PresetScenario } from '../types';
 export const PRESET_SCENARIOS: PresetScenario[] = [
   {
     id: 'emc-150mhz',
-    title: 'EMC 150MHz 超标与 DV 节点冲突',
+    title: '【EMC 150MHz 超标】辐射发射超标与 DV 准入决策演练',
     subtitle: 'Scenario 3: RE +3dB / B样件 / 距离 DV 测试仅剩 2 周',
     icon: 'Radio',
     context: {
@@ -33,7 +33,7 @@ export const PRESET_SCENARIOS: PresetScenario[] = [
   },
   {
     id: 'mosfet-alternative',
-    title: '关键 MOSFET 缺料替代与 AEC-Q 风险',
+    title: '【MOSFET 缺料替代】原厂停产换料与 AEC-Q/SOA 风险',
     subtitle: 'Scenario 1: 原厂停产换料 / Pin-to-Pin ≠ Spec-to-Spec / SOA与热阻差异',
     icon: 'Cpu',
     context: {
@@ -62,7 +62,7 @@ export const PRESET_SCENARIOS: PresetScenario[] = [
   },
   {
     id: 'wcca-cost-conflict',
-    title: 'WCCA 采样精度超标与 BOM 成本冲突',
+    title: '【WCCA 最坏情况分析】采样精度超标与 BOM 成本平衡',
     subtitle: 'Scenario 2: 客户要求 ±1% / 极端最坏情况 ±3.2% / RSS与蒙特卡洛差异',
     icon: 'Calculator',
     context: {
@@ -91,7 +91,7 @@ export const PRESET_SCENARIOS: PresetScenario[] = [
   },
   {
     id: 'customer-silence',
-    title: '客户需求不明确且长期不回复与投板冲突',
+    title: '【需求悬空待定】客户长时未回复与投板倒计时决策',
     subtitle: 'Scenario 4: 传感器接口阻抗未定义 / PCB 投板倒计时 3 天 / 沉默不等于批准',
     icon: 'MessageSquareWarning',
     context: {
@@ -120,7 +120,7 @@ export const PRESET_SCENARIOS: PresetScenario[] = [
   },
   {
     id: 'thermal-power-stage',
-    title: 'DC/DC 功率电感与 MOSFET 温升过高',
+    title: '【热设计极限】DC/DC 功率电感与 MOSFET 满载温升过高',
     subtitle: 'Scenario 5: 满载测试温升 +14℃ / 接近 Tj_max 限额 / 结构空间受限',
     icon: 'Flame',
     context: {
@@ -149,7 +149,7 @@ export const PRESET_SCENARIOS: PresetScenario[] = [
   },
   {
     id: 'bldc-motor-drive',
-    title: '车载座舱 BLDC 驱动急停母线泵升与米勒直通',
+    title: '【BLDC 急停泵升】3800rpm 母线泵升 37.8V 与米勒直通 (Section 14)',
     subtitle: 'Scenario 6: 悬浮滑移屏与重载座椅 / 反电动势倒灌超40V耐压 / 高dv/dt米勒直通隐患',
     icon: 'Cpu',
     context: {

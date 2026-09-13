@@ -459,13 +459,18 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Workflow Navigation Bar */}
         <nav className="flex space-x-1 overflow-x-auto py-2 border-t border-slate-800/80 scrollbar-none text-xs">
           {[
-            { id: 'input', label: '1. 项目与问题录入' },
-            { id: 'facts', label: '2. 事实与物理机理' },
-            { id: 'options', label: '3. 候选方案与残余风险' },
-            { id: 'cockpit', label: '4. C-T-S-Q-L 决策驾驶舱' },
-            { id: 'recommendation', label: '5. 最终推荐与 RACI' },
-            { id: 'docs', label: '6. 工程留痕文档 (邮件/特批/纪要)' },
-            { id: 'calc', label: '7. 确定性计算引擎 (WCCA/热/电压)' },
+            { id: 'overview', label: '🌟 10秒第一屏决策' },
+            { id: 'input', label: '1. 统一工程输入' },
+            { id: 'facts', label: '2. 事实证据与追溯' },
+            { id: 'patterns', label: '3. 物理机理 (P001~P018)' },
+            { id: 'options', label: '4. 候选方案与残余风险' },
+            { id: 'cockpit', label: '5. C-T-S-Q-L 决策驾驶舱' },
+            { id: 'verification', label: '6. 验证闭环 & VOI' },
+            { id: 'safety', label: '7. 功能安全 & 可靠性' },
+            { id: 'review', label: '8. 评审与回归 (Case01~14)' },
+            { id: 'recommendation', label: '9. 最终推荐与 RACI' },
+            { id: 'docs', label: '10. 受控文档 & EDR' },
+            { id: 'calc', label: '11. 确定性物理计算器' },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
             return (

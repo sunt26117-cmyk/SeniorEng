@@ -476,6 +476,15 @@ Return a single JSON object with these exact keys:
         );
 
         const parsed = healAndParseJson(rawContent);
+        parsed.provenance = {
+          executionMode: 'ONLINE_AI_INFERRED',
+          engineName: `云端大模型 (${modelConfig.model}) 即时推理`,
+          isAiInferred: true,
+          isDeterministicRule: false,
+          generatedAt: new Date().toLocaleTimeString(),
+          modelIdentifier: modelConfig.model,
+          transparencyNote: `本分析由 Google Gemini [${modelConfig.model}] 大模型即时推演生成，包含跨领域工程推测。`,
+        };
         res.setHeader('X-Engine-Source', `Gemini-${modelConfig.model}`);
         return res.json({
           success: true,
@@ -521,6 +530,15 @@ Return a single JSON object with these exact keys:
         );
 
         const parsed = healAndParseJson(rawContent);
+        parsed.provenance = {
+          executionMode: 'ONLINE_AI_INFERRED',
+          engineName: `云端大模型 (${modelConfig.model}) 即时推理`,
+          isAiInferred: true,
+          isDeterministicRule: false,
+          generatedAt: new Date().toLocaleTimeString(),
+          modelIdentifier: modelConfig.model,
+          transparencyNote: `本分析由自定义大模型 [${modelConfig.model}] 即时生成，结合了车规首席架构师提示词与多维决策护栏。`,
+        };
         res.setHeader('X-Engine-Source', `Custom-${modelConfig.model}`);
         return res.json({
           success: true,

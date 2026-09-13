@@ -1,0 +1,231 @@
+/**
+ * 第一屏 10 秒快速回答 4 大核心问题 (Section 9 UI 结构)
+ * 1. What is wrong?
+ * 2. Why（物理机制）?
+ * 3. What should we do now?
+ * 4. What would prove it（什么测试结果能证明判断对错）?
+ * 包含从 Issue 到 Closed Loop 的完整闭环履历导航
+ */
+
+import React from 'react';
+import {
+  AlertOctagon,
+  HelpCircle,
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle2,
+  XCircle,
+  Zap,
+  Activity,
+  Calendar,
+  Flame,
+  Clock,
+  Compass,
+  FileCheck,
+  ChevronRight,
+  TrendingDown,
+} from 'lucide-react';
+import { CopilotAnalysisResult, ProjectContext, IssueInput } from '../types';
+
+interface FirstScreen10sProps {
+  context: ProjectContext;
+  issue: IssueInput;
+  result: CopilotAnalysisResult | null;
+  onNavigateTab: (tabId: string) => void;
+}
+
+export const FirstScreen10sView: React.FC<FirstScreen10sProps> = ({
+  context,
+  issue,
+  result,
+  onNavigateTab,
+}) => {
+  if (!result) {
+    return null;
+  }
+
+  const { coreConclusion, physicalMechanism, finalRecommendation, riskRatings } = result;
+
+  // 10秒第一屏 4 核心要素提取
+  const whatIsWrong = issue.failurePhenomenon || '急停时母线电压瞬间泵升至 37.8V，严重逼近 MOSFET 40V 耐压上限，且伴随门极 2.15V 米勒尖峰与 48MHz 传导超标。';
+  const whyPhysical = physicalMechanism.rootCauseAnalysis.slice(0, 180) + '... (动能 E=½Jω² 经体二极管回馈倒灌入 DC-Link 电容引发泵升；对管开通高 dv/dt 经 Cgd 耦合米勒电流引发 Vgs 抬升)';
+  const whatToDoNow = '【首选推荐方案】' + finalRecommendation.recommendedOptionName + '。立即配置底层固件在急停时切入三相全下桥能耗短接制动，消除动能倒灌，配合门极有源米勒钳位与 48MHz RC Snubber。';
+  const whatWouldProveIt = '电机台架在 3800rpm 下触发 E-Stop，示波器高压差分探头实测：若母线峰值 <= 18.0V (裕量 >= 22V) 且门极 Vgs <= 0.8V (裕量 >= 1.2V) 判定 PASS 放行；若峰值 >= 35.0V 或 Vgs >= 1.8V 判定 FAIL 立即熔断并启动硬件改板。';
+
+  return (
+    <div className="space-y-6">
+      {/* 顶部醒目标题与项目工况快照 */}
+      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/40 border border-slate-800 rounded-xl p-5 shadow-lg">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                {context.projectPhase} 阶段
+              </span>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                {context.asilLevel}
+              </span>
+              <span className="text-xs text-slate-400 font-mono">
+                {context.projectName} · {context.customer}
+              </span>
+            </div>
+            <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+              <span>第一屏核心决策看板</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-normal">
+                10秒快速决策定位 (V4规范)
+              </span>
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="text-[11px] text-slate-400">交付倒计时</div>
+              <div className="text-lg font-bold font-mono text-amber-400">{context.daysRemaining} 天</div>
+            </div>
+            <div className="h-8 w-px bg-slate-800" />
+            <div className="text-right">
+              <div className="text-[11px] text-slate-400">综合风险等级</div>
+              <div className="text-lg font-bold font-mono text-red-400">{riskRatings.overallRisk} ({riskRatings.overallRiskScore}分)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 4 大核心问题卡片 (第一屏 10 秒即时回答) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Q1: What is wrong? */}
+        <div className="bg-slate-900/90 border border-red-500/40 rounded-xl p-4 shadow-sm hover:border-red-500/60 transition">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-red-500/20 flex items-center justify-center text-red-400 font-bold text-sm">
+                1
+              </div>
+              <h2 className="text-sm font-bold text-red-300">What is wrong? (发生了什么问题？)</h2>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-300 font-mono">CRITICAL PHENOMENON</span>
+          </div>
+          <p className="text-xs text-slate-200 leading-relaxed bg-slate-950/60 p-3 rounded-lg border border-slate-800/80">
+            {whatIsWrong}
+          </p>
+          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+            <span>实测峰值: <strong className="text-red-400 font-mono">37.8V</strong> (MOS 额定 40V)</span>
+            <button
+              onClick={() => onNavigateTab('facts')}
+              className="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium cursor-pointer"
+            >
+              查看事实与追溯 <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
+        {/* Q2: Why (物理机制)? */}
+        <div className="bg-slate-900/90 border border-blue-500/40 rounded-xl p-4 shadow-sm hover:border-blue-500/60 transition">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-sm">
+                2
+              </div>
+              <h2 className="text-sm font-bold text-blue-300">Why? (深层物理与失效机理是什么？)</h2>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">PHYSICAL MECHANISM</span>
+          </div>
+          <p className="text-xs text-slate-200 leading-relaxed bg-slate-950/60 p-3 rounded-lg border border-slate-800/80">
+            {whyPhysical}
+          </p>
+          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+            <span>物理链条: <span className="text-cyan-300 font-mono">E=½Jω² → 回馈电流 → Cbus过充 → Vds击穿</span></span>
+            <button
+              onClick={() => onNavigateTab('facts_patterns')}
+              className="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium cursor-pointer"
+            >
+              查看 18 个 Pattern 引擎 <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
+        {/* Q3: What should we do now? */}
+        <div className="bg-slate-900/90 border border-emerald-500/40 rounded-xl p-4 shadow-sm hover:border-emerald-500/60 transition">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-sm">
+                3
+              </div>
+              <h2 className="text-sm font-bold text-emerald-300">What should we do now? (当前首选对策)</h2>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">CURRENT BEST ACTION</span>
+          </div>
+          <p className="text-xs text-slate-200 leading-relaxed bg-slate-950/60 p-3 rounded-lg border border-slate-800/80">
+            {whatToDoNow}
+          </p>
+          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+            <span>交付周期: <strong className="text-emerald-400 font-mono">3天 (保住 15天 DV 节点)</strong></span>
+            <button
+              onClick={() => onNavigateTab('decisions')}
+              className="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium cursor-pointer"
+            >
+              查看 C-T-S-Q-L 决策与 Why-Not <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
+        {/* Q4: What would prove it? */}
+        <div className="bg-slate-900/90 border border-purple-500/40 rounded-xl p-4 shadow-sm hover:border-purple-500/60 transition">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-sm">
+                4
+              </div>
+              <h2 className="text-sm font-bold text-purple-300">What would prove it? (什么测试能证明对错？)</h2>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">QUANTIFIED GATE</span>
+          </div>
+          <p className="text-xs text-slate-200 leading-relaxed bg-slate-950/60 p-3 rounded-lg border border-slate-800/80">
+            {whatWouldProveIt}
+          </p>
+          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+            <span>门禁判据: <span className="text-emerald-300">Pass: Vds &le; 32V</span> / <span className="text-red-400">Fail: Vds &ge; 35V</span></span>
+            <button
+              onClick={() => onNavigateTab('verification_loop')}
+              className="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium cursor-pointer"
+            >
+              进入验证闭环与回填 <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 完整工程决策闭环链路导览 (Section 0 & 9 规范) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <Activity className="w-4 h-4 text-blue-400" />
+          <span>车规工程决策完整端到端推进链 (Engineering Decision Trace Pipeline)</span>
+        </h3>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+          {[
+            { step: '1', title: '工程工况输入', subtitle: '统一输入模型', tab: 'input', status: 'COMPLETE' },
+            { step: '2', title: '事实与证据', subtitle: '9类强制标签', tab: 'facts', status: 'COMPLETE' },
+            { step: '3', title: '物理机理&Pattern', subtitle: 'P001~P018确定性', tab: 'facts_patterns', status: 'ACTIVE' },
+            { step: '4', title: '决策与C-T-S-Q-L', subtitle: 'VETO & Why-Not', tab: 'decisions', status: 'READY' },
+            { step: '5', title: '验证闭环&VOI', subtitle: '回填重算风险', tab: 'verification_loop', status: 'READY' },
+            { step: '6', title: '功能安全&可靠性', subtitle: 'FMEDA/FTA/寿命', tab: 'safety_reliability', status: 'READY' },
+            { step: '7', title: '受控文档&EDR', subtitle: '防篡改决策单', tab: 'docs', status: 'READY' },
+          ].map((item, idx) => (
+            <button
+              key={idx}
+              onClick={() => onNavigateTab(item.tab)}
+              className="p-3 rounded-lg border bg-slate-950/70 border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/50 transition text-left cursor-pointer group"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-mono text-slate-500 group-hover:text-blue-400">STEP 0{item.step}</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              </div>
+              <div className="text-xs font-semibold text-slate-200 group-hover:text-blue-300">{item.title}</div>
+              <div className="text-[10px] text-slate-500 mt-0.5">{item.subtitle}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};

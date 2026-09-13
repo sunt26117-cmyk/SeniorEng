@@ -12,6 +12,11 @@ import { DecisionCockpitView } from './components/DecisionCockpitView';
 import { RecommendationRaciView } from './components/RecommendationRaciView';
 import { EngineeringDocsView } from './components/EngineeringDocsView';
 import { EngineeringCalculatorView } from './components/EngineeringCalculatorView';
+import { FirstScreen10sView } from './components/FirstScreen10sView';
+import { BldcPatternEngineView } from './components/BldcPatternEngineView';
+import { FunctionalSafetyReliabilityView } from './components/FunctionalSafetyReliabilityView';
+import { VerificationLoopView } from './components/VerificationLoopView';
+import { DesignReviewRegressionView } from './components/DesignReviewRegressionView';
 import { ModelSettingsModal } from './components/ModelSettingsModal';
 import { ScenarioManageModal } from './components/ScenarioManageModal';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
@@ -32,7 +37,7 @@ export default function App() {
   const [issue, setIssue] = useState<IssueInput>(PRESET_SCENARIOS[0].issue);
   const [result, setResult] = useState<CopilotAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<string>('facts');
+  const [activeTab, setActiveTab] = useState<string>('overview');
   const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
   const [isScenarioManageOpen, setIsScenarioManageOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -140,8 +145,18 @@ export default function App() {
       setContext(found.context);
       setIssue(found.issue);
       runAnalysis(found.context, found.issue);
-      showToast(`已载入工况: ${found.title}`, 'info');
+      showToast(`已成功载入工程案例：${found.title}`, 'info');
     }
+  };
+
+  const handleLoadSection14 = () => {
+    const bldcScenario = PRESET_SCENARIOS.find((s) => s.id === 'bldc-motor-drive') || PRESET_SCENARIOS[0];
+    setCurrentScenarioId(bldcScenario.id);
+    setContext(bldcScenario.context);
+    setIssue(bldcScenario.issue);
+    runAnalysis(bldcScenario.context, bldcScenario.issue);
+    setActiveTab('overview');
+    showToast('已载入 Section 14 验收工况 (3800rpm BLDC 急停母线泵升 37.8V ｜ 15天)', 'success');
   };
 
   const handleSaveAsCustomScenario = (title: string, ctx: ProjectContext, iss: IssueInput) => {
@@ -210,8 +225,33 @@ export default function App() {
 
   const runAnalysis = async (ctx = context, iss = issue) => {
     setIsAnalyzing(true);
+    const startTime = Date.now();
+
+    // 1. 纯本地离线模式：未启用外部大模型或选择车规确定性专家引擎时，100% 浏览器本地运算，零网络请求
+    if (!modelConfig.enabled || modelConfig.provider === 'builtin') {
+      try {
+        const localResult = runExpertAnalysis(ctx, iss);
+        localResult.provenance = {
+          executionMode: 'PURE_OFFLINE_LOCAL',
+          engineName: '车规确定性专家引擎 (100% 纯本地离线推演)',
+          isAiInferred: false,
+          isDeterministicRule: true,
+          generatedAt: new Date().toLocaleTimeString(),
+          latencyMs: Date.now() - startTime,
+          modelIdentifier: 'ECU-Hardware-RuleEngine-Deterministic-v4.2',
+          transparencyNote: '本报告由本地车规物理公式库与标准规则树严格推演生成，0 网络请求，0 数据出境，无幻觉。',
+        };
+        setResult(localResult);
+      } catch (err) {
+        console.error('Local expert engine execution failed:', err);
+      } finally {
+        setIsAnalyzing(false);
+      }
+      return;
+    }
+
+    // 2. 云端大模型在线推理模式 (DeepSeek / Qwen / Zhipu / Gemini)
     try {
-      // First try real backend endpoint with configured model (DeepSeek/Qwen/Zhipu/Moonshot/Gemini) + Calculation logic
       const response = await fetch('/api/copilot/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -222,18 +262,51 @@ export default function App() {
         const data = await response.json();
         const finalResult = data.result || data.data;
         if (finalResult) {
+          if (!finalResult.provenance) {
+            finalResult.provenance = {
+              executionMode: 'ONLINE_AI_INFERRED',
+              engineName: `云端大模型 (${modelConfig.model || 'OpenAI-Compatible'}) 即时推理`,
+              isAiInferred: true,
+              isDeterministicRule: false,
+              generatedAt: new Date().toLocaleTimeString(),
+              latencyMs: Date.now() - startTime,
+              modelIdentifier: modelConfig.model || 'Cloud-LLM',
+              transparencyNote: `本分析由云端大模型 [${modelConfig.model || 'AI'}] 基于输入参数即时推理生成，包含针对车规工况的探索性建议，建议结合物理实测验证。`,
+            };
+          }
           setResult(finalResult);
           setIsAnalyzing(false);
           return;
         }
       }
 
-      // If backend offline or missing API key, fallback instantly to deterministic expert engine
+      // If backend offline or missing API key, fallback to deterministic expert engine
       const localResult = runExpertAnalysis(ctx, iss);
+      localResult.provenance = {
+        executionMode: 'PURE_OFFLINE_LOCAL',
+        engineName: '车规确定性专家引擎 (云端未响应降级模式)',
+        isAiInferred: false,
+        isDeterministicRule: true,
+        generatedAt: new Date().toLocaleTimeString(),
+        latencyMs: Date.now() - startTime,
+        modelIdentifier: 'Deterministic-RuleEngine-Fallback',
+        transparencyNote: '由于云端模型未响应或未配置有效密钥，系统已自动平滑降级至本地确定性专家引擎，确保决策分析不中断。',
+      };
       setResult(localResult);
+      showToast('云端模型未响应，已自动平滑降级至本地确定性专家引擎', 'info');
     } catch (err) {
       console.warn('API route fallback to expert engine:', err);
       const localResult = runExpertAnalysis(ctx, iss);
+      localResult.provenance = {
+        executionMode: 'PURE_OFFLINE_LOCAL',
+        engineName: '车规确定性专家引擎 (网络隔离保护)',
+        isAiInferred: false,
+        isDeterministicRule: true,
+        generatedAt: new Date().toLocaleTimeString(),
+        latencyMs: Date.now() - startTime,
+        modelIdentifier: 'Deterministic-RuleEngine-Local',
+        transparencyNote: '当前网络无法访问云端大模型，已启动本地离线引擎保障分析。',
+      };
       setResult(localResult);
     } finally {
       setIsAnalyzing(false);
@@ -281,6 +354,12 @@ export default function App() {
         onExportMarkdown={handleExportMarkdown}
         onDownloadOfflineHtml={() => {
           showToast('正在下载纯离线单文件版 HTML，下载后双击即可直接使用！', 'success');
+          const a = document.createElement('a');
+          a.href = '/api/download/offline-html';
+          a.download = 'ECU_Hardware_Copilot_Offline.html';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
         }}
       />
 
@@ -305,6 +384,15 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {activeTab === 'overview' && (
+          <FirstScreen10sView
+            context={context}
+            issue={issue}
+            result={result}
+            onNavigateTab={(tab) => setActiveTab(tab)}
+          />
+        )}
+
         {activeTab === 'input' && (
           <ProjectContextView
             context={context}
@@ -329,6 +417,12 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'patterns' && (
+          <BldcPatternEngineView
+            onGoToDecisions={() => setActiveTab('cockpit')}
+          />
+        )}
+
         {activeTab === 'options' && (
           <OptionsComparisonView
             result={result}
@@ -343,6 +437,22 @@ export default function App() {
             hwLeadStyle={context.hwLeadStyle || 'AGILE_DELIVERY'}
             onLeadStyleChange={(style) => setContext({ ...context, hwLeadStyle: style })}
             recurrenceCount={context.recurrenceCount || 0}
+          />
+        )}
+
+        {activeTab === 'verification' && (
+          <VerificationLoopView
+            daysRemaining={context.daysRemaining}
+          />
+        )}
+
+        {activeTab === 'safety' && (
+          <FunctionalSafetyReliabilityView />
+        )}
+
+        {activeTab === 'review' && (
+          <DesignReviewRegressionView
+            onLoadScenarioSection14={handleLoadSection14}
           />
         )}
 

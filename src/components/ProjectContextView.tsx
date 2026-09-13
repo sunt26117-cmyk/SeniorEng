@@ -1,5 +1,5 @@
-import React from 'react';
-import { ProjectContext, IssueInput, IssueCategory, ProjectPhase, AsilLevel, HwLeadStyle } from '../types';
+import React, { useState, useRef } from 'react';
+import { ProjectContext, IssueInput, IssueCategory, ProjectPhase, AsilLevel, HwLeadStyle, IssueAttachment } from '../types';
 import {
   Layers,
   AlertCircle,
@@ -15,6 +15,11 @@ import {
   Zap,
   Scale,
   FolderPlus,
+  Image as ImageIcon,
+  FileSpreadsheet,
+  Eye,
+  X,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface ProjectContextViewProps {
@@ -89,24 +94,174 @@ export const ProjectContextView: React.FC<ProjectContextViewProps> = ({
     }
   };
 
-  const handleSimulateUpload = (fileName: string, type: string) => {
-    const newAttach = {
-      id: Math.random().toString(36).substring(2, 9),
-      name: fileName,
-      type,
-      size: `${(Math.random() * 2 + 0.5).toFixed(1)} MB`,
-    };
-    setIssue({
-      ...issue,
-      attachments: [...(issue.attachments || []), newAttach],
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<IssueAttachment | null>(null);
+
+  // 真实本地文件读取 (纯浏览器端 FileReader 处理，安全隔离，不上传外网)
+  const processRealFile = (file: File): Promise<IssueAttachment> => {
+    return new Promise((resolve) => {
+      const sizeFormatted =
+        file.size > 1024 * 1024
+          ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+          : `${(file.size / 1024).toFixed(1)} KB`;
+
+      const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const isImage = file.type.startsWith('image/');
+      const isText =
+        file.type.startsWith('text/') ||
+        file.name.endsWith('.csv') ||
+        file.name.endsWith('.json') ||
+        file.name.endsWith('.log') ||
+        file.name.endsWith('.txt');
+
+      if (isImage) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve({
+            id,
+            name: file.name,
+            type: file.type || 'image/png',
+            size: sizeFormatted,
+            dataUrl: reader.result as string,
+            uploadedAt: new Date().toLocaleTimeString(),
+          });
+        };
+        reader.onerror = () => {
+          resolve({
+            id,
+            name: file.name,
+            type: file.type,
+            size: sizeFormatted,
+            uploadedAt: new Date().toLocaleTimeString(),
+          });
+        };
+        reader.readAsDataURL(file);
+      } else if (isText) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const text = (reader.result as string) || '';
+          const lines = text.split('\n');
+          resolve({
+            id,
+            name: file.name,
+            type: file.type || 'text/plain',
+            size: sizeFormatted,
+            textSample: text.slice(0, 800),
+            rowCount: lines.length,
+            uploadedAt: new Date().toLocaleTimeString(),
+          });
+        };
+        reader.onerror = () => {
+          resolve({
+            id,
+            name: file.name,
+            type: file.type,
+            size: sizeFormatted,
+            uploadedAt: new Date().toLocaleTimeString(),
+          });
+        };
+        reader.readAsText(file.slice(0, 100 * 1024)); // preview first 100KB
+      } else {
+        resolve({
+          id,
+          name: file.name,
+          type: file.type || 'application/octet-stream',
+          size: sizeFormatted,
+          uploadedAt: new Date().toLocaleTimeString(),
+        });
+      }
     });
   };
 
+  const handleFilesSelected = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    const newAttachments = await Promise.all(fileArray.map(processRealFile));
+    setIssue((prev) => ({
+      ...prev,
+      attachments: [...(prev.attachments || []), ...newAttachments],
+    }));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await handleFilesSelected(e.dataTransfer.files);
+    }
+  };
+
+  // 典型实测基准样本快速载入 (带真实波形与测试明细数据)
+  const handleLoadBenchmarkPreset = (presetType: 'emc' | 'soa' | 'wcca' | 'bldc') => {
+    let preset: IssueAttachment;
+    if (presetType === 'emc') {
+      preset = {
+        id: `bench_emc_${Date.now()}`,
+        name: 'CISPR25_RE_150MHz_Spectrum_Test.csv',
+        type: 'text/csv',
+        size: '14.8 KB',
+        rowCount: 401,
+        uploadedAt: new Date().toLocaleTimeString(),
+        textSample: `Freq(MHz),Amplitude(dBuV/m),Limit_Class5(dBuV/m),Delta(dB)\n140.0,22.4,28.0,-5.6\n145.0,24.1,28.0,-3.9\n148.0,27.8,28.0,-0.2\n150.0,31.0,28.0,+3.0 [FAIL]\n152.0,29.2,28.0,+1.2 [FAIL]\n155.0,23.5,28.0,-4.5\n160.0,21.0,28.0,-7.0`,
+      };
+    } else if (presetType === 'soa') {
+      preset = {
+        id: `bench_soa_${Date.now()}`,
+        name: 'MOSFET_Trench_SOA_Pulse5b_Scope.csv',
+        type: 'text/csv',
+        size: '32.1 KB',
+        rowCount: 1024,
+        uploadedAt: new Date().toLocaleTimeString(),
+        textSample: `Time(us),Vds(V),Id(A),P_inst(W),SOA_Limit_P(W)\n0.0,12.0,0.0,0.0,1800.0\n10.0,28.5,42.0,1197.0,1800.0\n15.0,38.2,56.0,2139.2,1800.0 [SOA EXCEEDED!]\n20.0,42.0,30.0,1260.0,1800.0\n30.0,14.0,2.0,28.0,1800.0`,
+      };
+    } else if (presetType === 'wcca') {
+      preset = {
+        id: `bench_wcca_${Date.now()}`,
+        name: 'ADC_Dividers_WCCA_MonteCarlo_Summary.xlsx',
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        size: '64.5 KB',
+        rowCount: 10000,
+        uploadedAt: new Date().toLocaleTimeString(),
+        textSample: `Monte Carlo N=10000 runs\nNominal Vout: 3.300V\nWorst Case Max: 3.485V (+5.6%)\nWorst Case Min: 3.118V (-5.5%)\nRSS 3-Sigma: +/- 2.85%\nADC Error Budget Exceeded: YES (Grade 1 Temp)`,
+      };
+    } else {
+      preset = {
+        id: `bench_bldc_${Date.now()}`,
+        name: 'BLDC_DeadTime_PhaseRing_TekScope.csv',
+        type: 'text/csv',
+        size: '28.4 KB',
+        rowCount: 850,
+        uploadedAt: new Date().toLocaleTimeString(),
+        textSample: `Tektronix MSO54 Scope Waveform Export\nChannel 1: Phase-U High-Side Gate (V)\nChannel 2: Phase-U Low-Side Gate (V)\nMeasured Dead-time: 210 ns (Nominal Spec: 350 ns)\nSpike Ringing: 46.2V @ 12V Bus (Margin: 1.8V to 48V Vds_max)`,
+      };
+    }
+
+    setIssue((prev) => ({
+      ...prev,
+      attachments: [...(prev.attachments || []), preset],
+    }));
+  };
+
   const removeAttachment = (id: string) => {
-    setIssue({
-      ...issue,
-      attachments: (issue.attachments || []).filter((a) => a.id !== id),
-    });
+    setIssue((prev) => ({
+      ...prev,
+      attachments: (prev.attachments || []).filter((a) => a.id !== id),
+    }));
   };
 
   return (
@@ -596,71 +751,212 @@ export const ProjectContextView: React.FC<ProjectContextViewProps> = ({
 
           {/* Attachments / Data Files Upload */}
           <div className="pt-2">
-            <label className="block text-slate-400 mb-1.5 font-medium">
-              测试波形、频谱、数据表格与规范附件 (Attachments / Spectrum / Excel)
-            </label>
-            <div className="border-2 border-dashed border-slate-700 rounded-lg p-4 bg-slate-800/40 text-center">
-              <Upload className="w-6 h-6 text-slate-400 mx-auto mb-2" />
-              <p className="text-slate-300 font-medium text-xs">
-                支持上传 EMC 频谱图 (.png/.jpg)、示波器波形 (.csv)、WCCA 误差明细 (.xlsx)、测试报告 (.pdf)
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
+              <label className="block text-slate-300 font-semibold text-xs">
+                测试波形、频谱、数据表格与规范附件 (Attachments / Spectrum / Scope / Excel)
+              </label>
+              <span className="text-[10px] text-emerald-400 font-mono flex items-center">
+                <ShieldCheck className="w-3 h-3 mr-1" />
+                本地纯前端解析 (零数据外传，保障车规机密)
+              </span>
+            </div>
+
+            {/* Hidden native input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={(e) => {
+                if (e.target.files) {
+                  handleFilesSelected(e.target.files);
+                  e.target.value = ''; // reset so same file can be re-selected
+                }
+              }}
+              multiple
+              accept=".png,.jpg,.jpeg,.csv,.xlsx,.xls,.pdf,.txt,.json"
+              className="hidden"
+            />
+
+            {/* Drag & Drop Box */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-5 text-center transition cursor-pointer ${
+                isDragging
+                  ? 'border-blue-500 bg-blue-950/30 ring-2 ring-blue-500/20'
+                  : 'border-slate-700 bg-slate-800/40 hover:border-slate-500 hover:bg-slate-800/60'
+              }`}
+            >
+              <Upload className={`w-8 h-8 mx-auto mb-2 transition ${isDragging ? 'text-blue-400 scale-110' : 'text-slate-400'}`} />
+              <div className="text-slate-200 font-medium text-xs">
+                点击选择本地文件，或将测试附件直接拖拽至此处
+              </div>
+              <p className="text-slate-400 text-[11px] mt-1">
+                支持示波器波形 (.csv/.txt)、EMC 频谱图 (.png/.jpg)、WCCA 容差预算 (.xlsx) 与标准文档 (.pdf)
               </p>
-              <div className="flex justify-center gap-2 mt-3">
+            </div>
+
+            {/* Benchmark Presets Quick Load */}
+            <div className="mt-3 bg-slate-850/60 border border-slate-800 rounded-lg p-2.5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-semibold text-slate-400 flex items-center">
+                  <Zap className="w-3 h-3 text-amber-400 mr-1" />
+                  快速载入典型实测数据样本 (Preset Benchmarks):
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  点击直接导入标准测试集
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 <button
                   type="button"
-                  onClick={() => handleSimulateUpload('CISPR25_RE_150MHz_Spectrum.png', 'image/png')}
-                  className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs transition cursor-pointer"
+                  onClick={() => handleLoadBenchmarkPreset('emc')}
+                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 rounded text-[11px] transition cursor-pointer text-left truncate flex items-center space-x-1"
                 >
-                  + 添加 EMC 频谱测试曲线
+                  <span className="text-blue-400 shrink-0 font-bold">+</span>
+                  <span className="truncate">CISPR25 频谱 (.csv)</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSimulateUpload('MOSFET_SOA_Curve_Comparison.csv', 'text/csv')}
-                  className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs transition cursor-pointer"
+                  onClick={() => handleLoadBenchmarkPreset('soa')}
+                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 rounded text-[11px] transition cursor-pointer text-left truncate flex items-center space-x-1"
                 >
-                  + 添加 MOSFET SOA 曲线数据
+                  <span className="text-amber-400 shrink-0 font-bold">+</span>
+                  <span className="truncate">MOSFET SOA (.csv)</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSimulateUpload('WCCA_Error_Budget_MonteCarlo.xlsx', 'application/vnd.ms-excel')}
-                  className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs transition cursor-pointer"
+                  onClick={() => handleLoadBenchmarkPreset('wcca')}
+                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 rounded text-[11px] transition cursor-pointer text-left truncate flex items-center space-x-1"
                 >
-                  + 添加 WCCA 蒙特卡洛预算表
+                  <span className="text-emerald-400 shrink-0 font-bold">+</span>
+                  <span className="truncate">WCCA 容差表 (.xlsx)</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSimulateUpload('BLDC_Phase_Switching_Ring_Scope.csv', 'text/csv')}
-                  className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs transition cursor-pointer"
+                  onClick={() => handleLoadBenchmarkPreset('bldc')}
+                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 rounded text-[11px] transition cursor-pointer text-left truncate flex items-center space-x-1"
                 >
-                  + 添加 BLDC 相线振铃示波器波形
+                  <span className="text-purple-400 shrink-0 font-bold">+</span>
+                  <span className="truncate">BLDC 振铃波形 (.csv)</span>
                 </button>
               </div>
             </div>
 
             {/* Uploaded files list */}
             {issue.attachments && issue.attachments.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {issue.attachments.map((att) => (
-                  <div
-                    key={att.id}
-                    className="flex items-center space-x-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-md text-xs text-slate-300"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-blue-400" />
-                    <span>{att.name}</span>
-                    <span className="text-slate-500 text-[10px]">({att.size})</span>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(att.id)}
-                      className="text-slate-400 hover:text-red-400 ml-1 cursor-pointer"
+              <div className="mt-3 space-y-1.5">
+                <div className="text-[11px] text-slate-400 font-medium">
+                  已附加文件 ({issue.attachments.length}):
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {issue.attachments.map((att) => (
+                    <div
+                      key={att.id}
+                      className="flex items-center justify-between bg-slate-800/90 border border-slate-700 px-3 py-2 rounded-lg text-xs text-slate-300 hover:border-slate-600 transition"
                     >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center space-x-2 truncate min-w-0 mr-2">
+                        {att.dataUrl ? (
+                          <img
+                            src={att.dataUrl}
+                            alt="preview"
+                            className="w-6 h-6 rounded object-cover border border-slate-600 shrink-0"
+                          />
+                        ) : att.name.endsWith('.csv') || att.name.endsWith('.xlsx') ? (
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
+                        ) : (
+                          <FileText className="w-4 h-4 text-blue-400 shrink-0" />
+                        )}
+                        <div className="truncate min-w-0">
+                          <span className="font-medium text-slate-200 block truncate">{att.name}</span>
+                          <span className="text-slate-400 text-[10px] font-mono">
+                            {att.size} {att.rowCount ? `· ${att.rowCount} 行数据` : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-1 shrink-0">
+                        {(att.dataUrl || att.textSample) && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewAttachment(att)}
+                            className="p-1 hover:bg-slate-700 text-slate-400 hover:text-blue-300 rounded cursor-pointer transition"
+                            title="预览文件详情"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(att.id)}
+                          className="p-1 hover:bg-red-950/60 text-slate-400 hover:text-red-400 rounded cursor-pointer transition"
+                          title="移除附件"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Attachment Preview Modal */}
+      {previewAttachment && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-2xl w-full p-5 space-y-4 shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center space-x-2 min-w-0">
+                <FileText className="w-4 h-4 text-blue-400 shrink-0" />
+                <span className="font-bold text-sm text-white truncate">{previewAttachment.name}</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                  {previewAttachment.size}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewAttachment(null)}
+                className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto text-xs font-mono bg-slate-950 rounded-lg p-4 text-slate-300">
+              {previewAttachment.dataUrl ? (
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <img
+                    src={previewAttachment.dataUrl}
+                    alt={previewAttachment.name}
+                    className="max-h-[500px] object-contain rounded border border-slate-800"
+                  />
+                  <span className="text-[11px] text-slate-400">实测截图/波形已载入内存</span>
+                </div>
+              ) : previewAttachment.textSample ? (
+                <pre className="whitespace-pre-wrap leading-relaxed text-[11px] text-emerald-300">
+                  {previewAttachment.textSample}
+                </pre>
+              ) : (
+                <p className="text-slate-400 italic">二进制附件已就绪，已关联至当前工程工况。</p>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setPreviewAttachment(null)}
+                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-medium cursor-pointer"
+              >
+                关闭预览
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -9,6 +9,10 @@ export interface TraceabilityPayload {
   asilLevel: string;
   ecuType: string;
   timestampIso: string;
+  rawMeasurement?: string;
+  mechanismSummary?: string;
+  informationTagsSummary?: string;
+  assumptionsList?: string[];
   finalRecommendedOption: string;
   recommendationGrade: string;
   raciSignOffs: string[];
@@ -32,6 +36,10 @@ export async function generateDigitalFingerprint(
     `ASIL:${payload.asilLevel}`,
     `ECU:${payload.ecuType}`,
     `TIME:${payload.timestampIso}`,
+    `MEASUREMENT:${payload.rawMeasurement || 'N/A'}`,
+    `TAGS:${payload.informationTagsSummary || 'N/A'}`,
+    `MECHANISM:${payload.mechanismSummary || 'N/A'}`,
+    `ASSUMPTIONS:${(payload.assumptionsList || []).join(';')}`,
     `RECOMMENDATION:${payload.finalRecommendedOption}`,
     `GRADE:${payload.recommendationGrade}`,
     `RACI:${payload.raciSignOffs.sort().join(';')}`,
@@ -65,16 +73,17 @@ export async function generateDigitalFingerprint(
 
     const tamperProofCertificate = [
       `======================================================================`,
-      `  IATF 16949 / ISO 26262 车载硬件工程留痕数字防御指纹 (TAMPER-PROOF AUDIT)`,
+      `  车载硬件工程决策数据完整性校验凭证 (LOCAL INTEGRITY HASH RECORD)`,
       `======================================================================`,
       `【存证编号】: ${shortFingerprint}`,
+      `【校验算法】: Web Crypto API Native SHA-256 (256-bit Secure Digest)`,
       `【全量哈希】: SHA-256: ${sha256Hex}`,
       `【工程项目】: ${payload.projectName} (${payload.ecuType}) - 阶段: ${payload.projectPhase} / ${payload.asilLevel}`,
       `【存证时间】: ${timestampFormatted} (UTC+8)`,
       `【核准方案】: ${payload.finalRecommendedOption} [评级: ${payload.recommendationGrade}]`,
       `【签署责任链】: ${payload.raciSignOffs.join('; ')}`,
-      `【防篡改声明】: 本存证基于 SHA-256 算法固化，包含原始测量、机理推导、C-T-S-Q-L 权重与审批责任人。`,
-      `任何对单据内容、实测数据或风险等级的修改均将导致此哈希校验失效。符合 ISO 26262 Part 5 审计证据链要求。`,
+      `【校验覆盖域】: 覆盖原始测量记录、五类分类标签(MEASURED/SPEC等)、机理推导摘要、核心假设条件、方案评分与RACI责任人。`,
+      `【完整性说明】: 本指纹用于技术评审及决策归档时检验案卷数据完整性。任何对实测数据、规范限值、假设或结论的篡改均将导致哈希校验失效（注：企业级本地工程防伪留痕记录，非第三方CA公证时间戳）。`,
       `======================================================================`,
     ].join('\n');
 
