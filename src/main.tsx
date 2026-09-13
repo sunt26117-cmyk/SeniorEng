@@ -9,12 +9,29 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
-// Register PWA Service Worker for mobile installability
+// Register PWA Service Worker for mobile installability and purge stale caches
 if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
-      console.log('SW registration error:', err);
-    });
+    // Clear any obsolete v1 caches
+    if ('caches' in window) {
+      caches.keys().then((keys) => {
+        keys.forEach((key) => {
+          if (key.includes('v1') || key.includes('v2')) {
+            caches.delete(key);
+          }
+        });
+      });
+    }
+
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => {
+        reg.update();
+      })
+      .catch((err) => {
+        console.log('SW registration error:', err);
+      });
   });
 }
+
 

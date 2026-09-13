@@ -10,6 +10,8 @@ import {
   Sun,
   Leaf,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Check,
   Save,
   Download,
@@ -19,6 +21,7 @@ import {
   FolderPlus,
   Globe2,
 } from 'lucide-react';
+
 import { PRESET_SCENARIOS } from '../data/presetScenarios';
 import { AppTheme, ModelApiConfig, PresetScenario } from '../types';
 
@@ -62,6 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [showBackupMenu, setShowBackupMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   const getModelBadge = () => {
     if (!modelConfig.enabled || modelConfig.provider === 'builtin') {
@@ -424,6 +428,37 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </div>
                     </a>
 
+                    {/* Clear SW Cache & Hard Reload */}
+                    <button
+                      id="clear-cache-reload-btn"
+                      onClick={async () => {
+                        setShowBackupMenu(false);
+                        try {
+                          if ('caches' in window) {
+                            const keys = await caches.keys();
+                            await Promise.all(keys.map((k) => caches.delete(k)));
+                          }
+                          if ('serviceWorker' in navigator) {
+                            const regs = await navigator.serviceWorker.getRegistrations();
+                            await Promise.all(regs.map((r) => r.unregister()));
+                          }
+                        } catch (e) {
+                          console.error(e);
+                        }
+                        window.location.reload();
+                      }}
+                      className="w-full px-3 py-2 flex items-start gap-2.5 text-left hover:bg-slate-800/80 transition cursor-pointer text-slate-200 border-t border-slate-800/60"
+                    >
+                      <RefreshCw className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                      <div>
+                        <div className="font-semibold text-amber-300">清除浏览器缓存并强制更新</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          若手机端显示旧版内容，点击此项注销 Service Worker 并重载最新版本。
+                        </div>
+                      </div>
+                    </button>
+
+
                     <div className="mt-1 pt-1.5 px-3 border-t border-slate-800 text-[9px] text-slate-500">
                       💡 提示：所有计算与备份均在浏览器本地内存完成，无需外部网络和管理员特权。
                     </div>
@@ -457,38 +492,98 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Workflow Navigation Bar */}
-        <nav className="flex space-x-1 overflow-x-auto py-2 border-t border-slate-800/80 scrollbar-none text-xs">
-          {[
-            { id: 'overview', label: '🌟 10秒第一屏决策' },
-            { id: 'input', label: '1. 统一工程输入' },
-            { id: 'facts', label: '2. 事实证据与追溯' },
-            { id: 'patterns', label: '3. 物理机理 (P001~P018)' },
-            { id: 'options', label: '4. 候选方案与残余风险' },
-            { id: 'cockpit', label: '5. C-T-S-Q-L 决策驾驶舱' },
-            { id: 'verification', label: '6. 验证闭环 & VOI' },
-            { id: 'safety', label: '7. 功能安全 & 可靠性' },
-            { id: 'review', label: '8. 评审与回归 (Case01~14)' },
-            { id: 'recommendation', label: '9. 最终推荐与 RACI' },
-            { id: 'docs', label: '10. 受控文档 & EDR' },
-            { id: 'calc', label: '11. 确定性物理计算器' },
-          ].map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                id={`tab-btn-${tab.id}`}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-1.5 rounded-md whitespace-nowrap font-medium transition cursor-pointer ${
-                  isActive
-                    ? 'bg-blue-600/25 text-blue-400 border border-blue-500/40 shadow-xs font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </nav>
+        <div className="border-t border-slate-800/80 pt-1.5 pb-2">
+          {/* Mobile Fast-Jump Dropdown (Especially useful for Samsung S23 Ultra / mobile screens) */}
+          <div className="md:hidden flex items-center gap-2 mb-1.5 px-0.5">
+            <span className="text-[11px] text-slate-400 font-semibold shrink-0">快捷选模块:</span>
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value)}
+              className="flex-1 bg-slate-900 border border-slate-700 text-xs text-blue-300 font-medium rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer shadow-inner"
+            >
+              {[
+                { id: 'overview', label: '🌟 10秒第一屏决策' },
+                { id: 'input', label: '1. 统一工程输入' },
+                { id: 'facts', label: '2. 事实证据与追溯' },
+                { id: 'patterns', label: '3. 物理机理 (P001~P018)' },
+                { id: 'options', label: '4. 候选方案与残余风险' },
+                { id: 'cockpit', label: '5. C-T-S-Q-L 决策驾驶舱' },
+                { id: 'verification', label: '6. 验证闭环 & VOI' },
+                { id: 'safety', label: '7. 功能安全 & 可靠性' },
+                { id: 'review', label: '8. 评审与回归 (Case01~14)' },
+                { id: 'recommendation', label: '9. 团队博弈推演 · RACI (团队隐秘担忧点+领导多方博弈)' },
+                { id: 'docs', label: '10. 受控文档 & EDR' },
+                { id: 'calc', label: '11. 确定性物理计算器' },
+              ].map((tab) => (
+                <option key={tab.id} value={tab.id} className="bg-slate-900 text-slate-200">
+                  {tab.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Desktop & Mobile Scrollable Nav Ribbon */}
+          <div className="relative flex items-center gap-1">
+            <button
+              onClick={() => {
+                if (navRef.current) navRef.current.scrollBy({ left: -220, behavior: 'smooth' });
+              }}
+              className="hidden sm:flex items-center justify-center w-6 h-6 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-400 hover:text-white shrink-0 cursor-pointer transition border border-slate-700"
+              title="向左滚动模块"
+              aria-label="Scroll left"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+
+            <nav
+              ref={navRef}
+              className="flex-1 flex space-x-1 overflow-x-auto py-1 scrollbar-none text-xs scroll-smooth"
+            >
+              {[
+                { id: 'overview', label: '🌟 10秒第一屏决策' },
+                { id: 'input', label: '1. 统一工程输入' },
+                { id: 'facts', label: '2. 事实证据与追溯' },
+                { id: 'patterns', label: '3. 物理机理 (P001~P018)' },
+                { id: 'options', label: '4. 候选方案与残余风险' },
+                { id: 'cockpit', label: '5. C-T-S-Q-L 决策驾驶舱' },
+                { id: 'verification', label: '6. 验证闭环 & VOI' },
+                { id: 'safety', label: '7. 功能安全 & 可靠性' },
+                { id: 'review', label: '8. 评审与回归 (Case01~14)' },
+                { id: 'recommendation', label: '9. 团队博弈推演 · RACI' },
+                { id: 'docs', label: '10. 受控文档 & EDR' },
+                { id: 'calc', label: '11. 确定性物理计算器' },
+              ].map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    id={`tab-btn-${tab.id}`}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-3 py-1.5 rounded-md whitespace-nowrap font-medium transition cursor-pointer shrink-0 ${
+                      isActive
+                        ? 'bg-blue-600/25 text-blue-400 border border-blue-500/40 shadow-xs font-semibold'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </nav>
+
+            <button
+              onClick={() => {
+                if (navRef.current) navRef.current.scrollBy({ left: 220, behavior: 'smooth' });
+              }}
+              className="hidden sm:flex items-center justify-center w-6 h-6 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-400 hover:text-white shrink-0 cursor-pointer transition border border-slate-700"
+              title="向右滚动模块"
+              aria-label="Scroll right"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
       </div>
     </header>
   );

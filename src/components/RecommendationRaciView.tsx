@@ -23,6 +23,17 @@ import {
   Code2,
   Cpu,
   Target,
+  Package,
+  Microscope,
+  Play,
+  RotateCcw,
+  Sparkles,
+  MessagesSquare,
+  XCircle,
+  Send,
+  ChevronDown,
+  ChevronUp,
+  Layers,
 } from 'lucide-react';
 
 interface RecommendationRaciViewProps {
@@ -37,6 +48,13 @@ export const RecommendationRaciView: React.FC<RecommendationRaciViewProps> = ({
   if (!result) return null;
 
   const { finalRecommendation, raciMatrix, containment, capa, riskRatings } = result;
+
+  // 动态多方推演博弈工作台状态
+  const [wargameOption, setWargameOption] = useState<'RECOMMENDED' | 'RE_SPIN' | 'CONCESSION'>('RECOMMENDED');
+  const [wargameLeadStyle, setWargameLeadStyle] = useState<'CONSERVATIVE' | 'AGILE_DELIVERY' | 'PROCESS_DEFENSIVE'>('AGILE_DELIVERY');
+  const [currentRound, setCurrentRound] = useState<number>(1);
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('ALL');
+  const [isWargameOpen, setIsWargameOpen] = useState<boolean>(true);
 
   // 判定所选方案是否涉及降额违规、临界或高风险
   const isSafetyOrDeratingCritical =
@@ -241,215 +259,865 @@ export const RecommendationRaciView: React.FC<RecommendationRaciViewProps> = ({
         </div>
       </div>
 
-      {/* 2. 核心人员心理透视与行为预判卡片 (Stakeholder Mindsets & Action Prediction) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+      {/* 2. 团队成员与领导多方推演博弈工作台 (Interactive Multi-Stakeholder Wargame Simulator) */}
+      <div className="bg-slate-900 border border-indigo-500/40 rounded-xl p-6 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center">
-              <BrainCircuit className="w-4 h-4 mr-2 text-indigo-400" />
-              汽车开发链条核心角色心理透视与博弈应对矩阵 (Stakeholder Mindset & Counter-Strategy)
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-mono">
+                INTERACTIVE WARGAME SIMULATOR
+              </span>
+              <span className="text-[11px] text-emerald-400 font-semibold font-mono">
+                ● 8方博弈实时推演引擎就绪
+              </span>
+            </div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <BrainCircuit className="w-5 h-5 text-indigo-400" />
+              <span>团队成员隐秘担忧点透视与跨职能推演博弈台</span>
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              直面“想解决问题，但绝不想多干活、绝不替别人担责”的职场真实生态，精准预判各角色行动并提前构筑防御。
+            <p className="text-xs text-slate-400 mt-1">
+              模拟“想解决问题，但绝不想多干活、绝不替别人背锅”的汽车研发真实政治生态。选择候选方案与领导风格，推演各方发难、甩锅推诿与免责闭环。
             </p>
           </div>
-          <span className="text-[11px] font-mono text-indigo-300 px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800/60 self-start sm:self-auto">
-            4方博弈防御机制已就绪
-          </span>
+
+          <button
+            onClick={() => setIsWargameOpen(!isWargameOpen)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 transition cursor-pointer self-start sm:self-auto"
+          >
+            {isWargameOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            <span>{isWargameOpen ? '收起推演台' : '展开动态推演'}</span>
+          </button>
+        </div>
+
+        {isWargameOpen && (
+          <div className="space-y-5">
+            {/* 方案与领导风格控制器 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-950/70 border border-slate-800">
+              {/* 1. 拟推演的候选工程方案 */}
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-2 flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-blue-400" />
+                  <span>选择用于推演博弈的候选方案：</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => {
+                      setWargameOption('RECOMMENDED');
+                      setCurrentRound(1);
+                    }}
+                    className={`p-2.5 rounded-lg border text-left cursor-pointer transition text-xs ${
+                      wargameOption === 'RECOMMENDED'
+                        ? 'bg-blue-950/60 border-blue-500 text-white shadow-xs'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="font-bold text-blue-300">方案 B (首选推荐)</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">原位RC吸收+固件下桥短接</div>
+                    <div className="text-[9px] text-emerald-400 mt-1 font-mono">耗时: 3天 · 增量: +$0.15</div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setWargameOption('RE_SPIN');
+                      setCurrentRound(1);
+                    }}
+                    className={`p-2.5 rounded-lg border text-left cursor-pointer transition text-xs ${
+                      wargameOption === 'RE_SPIN'
+                        ? 'bg-purple-950/60 border-purple-500 text-white shadow-xs'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="font-bold text-purple-300">方案 A (重型改版)</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">PCB Re-spin 换60V管</div>
+                    <div className="text-[9px] text-amber-400 mt-1 font-mono">耗时: 28天 · 增量: +$1.80</div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setWargameOption('CONCESSION');
+                      setCurrentRound(1);
+                    }}
+                    className={`p-2.5 rounded-lg border text-left cursor-pointer transition text-xs ${
+                      wargameOption === 'CONCESSION'
+                        ? 'bg-rose-950/60 border-rose-500 text-white shadow-xs'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="font-bold text-rose-300">方案 C (特采放行)</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">降额贴线让步强行出库</div>
+                    <div className="text-[9px] text-red-400 mt-1 font-mono">耗时: 0天 · 法律高危</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. 硬件直属领导当前态度倾向 */}
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-2 flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-amber-400" />
+                  <span>设定硬件直属领导的态度倾向：</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setWargameLeadStyle('AGILE_DELIVERY')}
+                    className={`p-2.5 rounded-lg border text-left cursor-pointer transition text-xs ${
+                      wargameLeadStyle === 'AGILE_DELIVERY'
+                        ? 'bg-emerald-950/60 border-emerald-500 text-white'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="font-bold text-emerald-300">🚀 敏捷交付优先</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">保当前节点，内部消化</div>
+                  </button>
+
+                  <button
+                    onClick={() => setWargameLeadStyle('CONSERVATIVE')}
+                    className={`p-2.5 rounded-lg border text-left cursor-pointer transition text-xs ${
+                      wargameLeadStyle === 'CONSERVATIVE'
+                        ? 'bg-blue-950/60 border-blue-500 text-white'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="font-bold text-blue-300">🛡️ 技术求稳型</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">极重降额，宁可稍推迟</div>
+                  </button>
+
+                  <button
+                    onClick={() => setWargameLeadStyle('PROCESS_DEFENSIVE')}
+                    className={`p-2.5 rounded-lg border text-left cursor-pointer transition text-xs ${
+                      wargameLeadStyle === 'PROCESS_DEFENSIVE'
+                        ? 'bg-amber-950/60 border-amber-500 text-white'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="font-bold text-amber-300">⚖️ 流程免责型</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">权责划清，绝不单方背锅</div>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 回合演进控制器 (Round 1 -> 4) */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-950/40 p-3 rounded-xl border border-slate-800">
+              <div className="flex items-center space-x-2 text-xs">
+                <span className="text-slate-400 font-medium">推演博弈推进阶段:</span>
+                <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold font-mono">
+                  ROUND {currentRound} / 4
+                </span>
+              </div>
+
+              <div className="flex items-center space-x-1.5 overflow-x-auto">
+                {[
+                  { r: 1, title: '回合 1: 提案提出' },
+                  { r: 2, title: '回合 2: 团队发难与甩锅' },
+                  { r: 3, title: '回合 3: 证据反击与免责' },
+                  { r: 4, title: '回合 4: 纳什均衡共识' },
+                ].map((item) => (
+                  <button
+                    key={item.r}
+                    onClick={() => setCurrentRound(item.r)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer whitespace-nowrap ${
+                      currentRound === item.r
+                        ? 'bg-indigo-600 text-white shadow-xs font-semibold'
+                        : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {item.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 当前回合推演剧本对话与各方心理碰撞呈现 */}
+            <div className="bg-slate-950/80 rounded-xl p-4 border border-slate-800/90">
+              {/* 回合 1: 提案提出 */}
+              {currentRound === 1 && (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 bg-blue-950/30 border border-blue-800/40 p-3.5 rounded-xl">
+                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                      HW
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-blue-300">硬件工程师 (提案发起方)</span>
+                        <span className="text-[10px] text-slate-400">正在跨职能对齐会议上汇报方案...</span>
+                      </div>
+                      <p className="text-slate-200 leading-relaxed">
+                        {wargameOption === 'RECOMMENDED' && (
+                          <>
+                            “各位，电机急停时测得母线电压飙升至 <strong>37.8V</strong>，逼近 40V 耐压上限，且伴随门极 2.15V 米勒尖峰。我们提议采用【方案 B】：<strong>在 PCB 原位并联 RC 吸收电路，并在急停瞬间由底层固件切入三相全开下桥短接制动</strong>。不动 PCB 布线，BOM 成本仅增 $0.15，台架 3 天即可复测闭环，确保保住 15 天后的 DV 交付节点！”
+                          </>
+                        )}
+                        {wargameOption === 'RE_SPIN' && (
+                          <>
+                            “各位，实测 37.8V 已逼近 40V 极限。为彻底杜绝风险，我们提议采用【方案 A】：<strong>重新改版 PCB，并将下桥 MOSFET 耐压从 40V 升级至 60V 车规管</strong>。单板成本增加 $1.80，重新打板、SMT 贴片及 DV 摸底预计需要 28 天，建议项目申请将 DV 节点整体顺延 4 周。”
+                          </>
+                        )}
+                        {wargameOption === 'CONCESSION' && (
+                          <>
+                            “各位，当前距离 DV 封板仅剩 15 天，任何改动都来不及了。我们提议采用【方案 C】：<strong>保持硬件原样，提交特采让步审批单出库</strong>。只要在常温下使用，40V 器件抗 37.8V 依然没有击穿，先保送样！”
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right text-[11px] text-slate-400">
+                    💡 提示：点击上方的【回合 2: 团队发难与甩锅】，查看各核心角色听完此提案后的第一心理反应与推诿质疑！
+                  </div>
+                </div>
+              )}
+
+              {/* 回合 2: 团队发难与甩锅推演 */}
+              {currentRound === 2 && (
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold text-rose-400 flex items-center gap-1.5 mb-2">
+                    <ShieldAlert className="w-4 h-4" />
+                    <span>各专业核心角色的核心担忧发难与阻力透视：</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    {/* PM 发难 */}
+                    <div className="bg-emerald-950/20 border border-emerald-500/30 p-3 rounded-lg">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-bold text-emerald-300 flex items-center gap-1.5">
+                          <Briefcase className="w-3.5 h-3.5" /> 项目经理 (PM)
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                          {wargameOption === 'RE_SPIN' ? '⚡ 暴跳如雷' : wargameOption === 'RECOMMENDED' ? '⚠️ 高度戒备' : '🤔 犹豫默许'}
+                        </span>
+                      </div>
+                      <p className="text-slate-300 text-[11px] leading-relaxed">
+                        {wargameOption === 'RE_SPIN' &&
+                          '“推迟 4 周？！你知道车厂对 DV 延期的索赔是按天计算的吗？向高层汇报时亮红灯，整个项目的年终奖全部泡汤！改版坚决不同意！”'}
+                        {wargameOption === 'RECOMMENDED' &&
+                          '“3 天真能搞定？如果 3 天后台架测出来还是超标怎么办？必须立下军令状，绝不能出现二次返工！”'}
+                        {wargameOption === 'CONCESSION' &&
+                          '“只要能保住本周五送检，我没意见。但质量和领导必须在特批单签字，责任不能落在项目组头上。”'}
+                      </p>
+                    </div>
+
+                    {/* 软件负责人发难 */}
+                    <div className="bg-purple-950/20 border border-purple-500/30 p-3 rounded-lg">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-bold text-purple-300 flex items-center gap-1.5">
+                          <Code2 className="w-3.5 h-3.5" /> 底层软件 (SW Lead)
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-950 text-purple-300 border border-purple-800">
+                          {wargameOption === 'RECOMMENDED' ? '⚡ 坚决甩锅/推诿' : '☕ 旁观吃瓜'}
+                        </span>
+                      </div>
+                      <p className="text-slate-300 text-[11px] leading-relaxed">
+                        {wargameOption === 'RECOMMENDED' &&
+                          '“凭什么硬件搞不定噪声就让软件擦屁股？底层固件已经冻结！三相全开下桥会多占用 PWM 中断，万一引入 ASIL D 中断重入死锁，这锅我们软件绝对不背！”'}
+                        {wargameOption === 'RE_SPIN' &&
+                          '“硬件改版换管子不涉及底层软件控制架构，只要管脚兼容，我们全力支持硬件重新改版。”'}
+                        {wargameOption === 'CONCESSION' &&
+                          '“软件不改动，我们没意见，谁提特采谁背锅。”'}
+                      </p>
+                    </div>
+
+                    {/* 测试负责人发难 */}
+                    <div className="bg-cyan-950/20 border border-cyan-500/30 p-3 rounded-lg">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-bold text-cyan-300 flex items-center gap-1.5">
+                          <Microscope className="w-3.5 h-3.5" /> 测试验证 (DVT Lead)
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
+                          ⚠️ 严防测试漏判
+                        </span>
+                      </div>
+                      <p className="text-slate-300 text-[11px] leading-relaxed">
+                        {wargameOption === 'RECOMMENDED' &&
+                          '“电机 3800rpm 急停制动时反电势能量巨大，三相全开下桥电感回路瞬间短路，MOSFET 瞬态结温会飙到多少？别在我的台架上把测功机给炸了！”'}
+                        {wargameOption === 'RE_SPIN' &&
+                          '“换 60V 管子后必须重新做 1000 次急停循环测试，排期至少要 2 周。”'}
+                        {wargameOption === 'CONCESSION' &&
+                          '“实测 37.8V 贴上限，测试报告我不可能打勾 PASS，必须加注红色风险提醒！”'}
+                      </p>
+                    </div>
+
+                    {/* 产品安全代表 (PSCR) 与 硬件直属领导 */}
+                    <div className="bg-red-950/20 border border-red-500/30 p-3 rounded-lg">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-bold text-red-300 flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5" /> 安全官 (PSCR) & 硬件主管
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-950 text-red-300 border border-red-800">
+                          {wargameOption === 'CONCESSION' ? '🛑 一票否决卡死' : '🔍 关注免责证明'}
+                        </span>
+                      </div>
+                      <p className="text-slate-300 text-[11px] leading-relaxed">
+                        {wargameOption === 'CONCESSION' &&
+                          '“【一票否决】MOS 额定 40V 跑到 37.8V，降额率达 94.5%，严重违背 AEC-Q101 与 ISO 26262 降额安全准则，PSCR 坚决拒签，禁止出库！”'}
+                        {wargameOption === 'RECOMMENDED' &&
+                          (wargameLeadStyle === 'CONSERVATIVE'
+                            ? '“必须给出严格的数学机理推导和原厂书面保证，确认 RC 吸收不影响正常 PWM 开关效率，否则我不能签字。”'
+                            : wargameLeadStyle === 'PROCESS_DEFENSIVE'
+                            ? '“软件要改标定参数？必须先让软件负责人提变更申请，把责任划分清楚。”'
+                            : '“只要 3 天内能拿出示波器压降实测报告，且结温在 SOA 裕量内，我同意按此方案推进！”')}
+                        {wargameOption === 'RE_SPIN' &&
+                          '“虽然稳妥，但改版时间太长，大老板会直接找我问责。必须评估有没有原位救急的 Plan B。”'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 回合 3: 证据反击与免责防御 */}
+              {currentRound === 3 && (
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold text-blue-400 flex items-center gap-1.5 mb-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span>系统赋能的【确定性物理证据链反击与免责防御盾牌】：</span>
+                  </div>
+
+                  <div className="bg-slate-900/90 border border-blue-500/30 p-4 rounded-xl space-y-2 text-xs">
+                    {wargameOption === 'RECOMMENDED' && (
+                      <>
+                        <div className="flex items-start gap-2">
+                          <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono text-[10px] shrink-0">
+                            防御 1: 能量与结温数学做实
+                          </span>
+                          <p className="text-slate-200">
+                            反驳 DVT 炸机担忧：动能公式推导 <strong>E = ½Jω² = 0.18J</strong>。电机在 3800rpm 下全开下桥制动，反电动势在绕组内阻与 MOS Rds(on) 瞬时耗散，瞬态结温温升核算仅为 <strong>+8.4℃ (峰值 Tj = 93.4℃)</strong>，远低于器件 175℃ 极限，SOA 安全工作区裕量达 <strong>62%</strong>！
+                          </p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono text-[10px] shrink-0">
+                            防御 2: 软件零风险标定打消推诿
+                          </span>
+                          <p className="text-slate-200">
+                            反驳软件中断风险：无需修改核心控制环路算法，仅需配置驱动芯片寄存器 <code>0x04 = 0x03</code>（急停刹车自动切入全下桥模式），硬件工程师已在台架打桩验证通过，无代码冻结风险。
+                          </p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono text-[10px] shrink-0">
+                            防御 3: 现货供应链与原厂公函
+                          </span>
+                          <p className="text-slate-200">
+                            原位 0805 RC Snubber (10Ω + 4.7nF) 库房现有车规级合格料 50k 片，无需采购排期；原厂 FAE 已出具书面设计确认函，免责链条闭环。
+                          </p>
+                        </div>
+                      </>
+                    )}
+
+                    {wargameOption === 'RE_SPIN' && (
+                      <p className="text-amber-300">
+                        虽然具备极佳的技术裕量，但经成本与周期矩阵核算，项目违约罚款高达 $200,000，且 60V 替代料采购周期长达 18 周。此方案仅适合作为 SOP 后的持续改进 CAPA，当前阶段被多方联合否决。
+                      </p>
+                    )}
+
+                    {wargameOption === 'CONCESSION' && (
+                      <p className="text-red-300">
+                        特采方案在法律与合规审计上无法建立免责链。一旦售后发生单台 MOSFET 击穿引发电机失控，将被质检总局启动缺陷产品召回，签字人承担终身追偿风险。防御失败！
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 回合 4: 纳什均衡共识达成 */}
+              {currentRound === 4 && (
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 mb-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>最终博弈平衡点 (Nash Equilibrium) 与跨专业会签共识：</span>
+                  </div>
+
+                  {wargameOption === 'RECOMMENDED' ? (
+                    <div className="bg-emerald-950/30 border border-emerald-500/50 p-4 rounded-xl space-y-3 text-xs">
+                      <div className="flex items-center justify-between border-b border-emerald-900/60 pb-2">
+                        <span className="font-bold text-emerald-300 text-sm">
+                          🎉 全员达成会签共识：方案 B 获批准进入实施闭环！
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-[10px]">
+                          通关指数: 96%
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                        <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+                          <span className="text-blue-300 font-semibold block">👔 硬件主管 (A)</span>
+                          <span className="text-emerald-400 font-bold">✔ 签字批准</span>
+                          <p className="text-slate-400 text-[10px] mt-0.5">有原厂函+数学做实，免责无忧</p>
+                        </div>
+                        <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+                          <span className="text-emerald-300 font-semibold block">⏱️ 项目经理 (A/C)</span>
+                          <span className="text-emerald-400 font-bold">✔ 窗口放行</span>
+                          <p className="text-slate-400 text-[10px] mt-0.5">3天完成，15天节点绿灯保住</p>
+                        </div>
+                        <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+                          <span className="text-purple-300 font-semibold block">💻 底层软件 (R)</span>
+                          <span className="text-emerald-400 font-bold">✔ 配合标定</span>
+                          <p className="text-slate-400 text-[10px] mt-0.5">仅配置寄存器，不动核心环路</p>
+                        </div>
+                        <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+                          <span className="text-red-300 font-semibold block">⚖️ PSCR / 质量 (C)</span>
+                          <span className="text-emerald-400 font-bold">✔ 解除卡点</span>
+                          <p className="text-slate-400 text-[10px] mt-0.5">降额回至42%，安全机制达标</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-red-950/30 border border-red-500/50 p-4 rounded-xl text-xs space-y-2">
+                      <div className="font-bold text-red-300 text-sm">
+                        ⚠️ 博弈未能达成共识：该方案存在无法调和的利益冲突或一票否决！
+                      </div>
+                      <p className="text-slate-300 text-[11px] leading-relaxed">
+                        {wargameOption === 'RE_SPIN' &&
+                          '因 28 天工期导致 15 天 DV 节点严重击穿，PM 与直属领导坚决拒签。请切换至【方案 B】推演最优均衡解。'}
+                        {wargameOption === 'CONCESSION' &&
+                          '因 94.5% 极端降额违约，PSCR 与质量部行使一票否决权，出库通道被锁死。请切换至【方案 B】推演最优均衡解。'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 3. 汽车开发链条 8 大核心角色深度心理透视与攻心策略卡片 */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center">
+              <Users className="w-4 h-4 mr-2 text-indigo-400" />
+              汽车开发链条 8 大核心角色心理透视与攻心策略全矩阵
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              深度剖析每一位利益攸关方的真实 KPI、隐秘担忧点、下一步甩锅动作与精准攻心通关策略。
+            </p>
+          </div>
+
+          {/* 角色筛选器 */}
+          <div className="flex items-center space-x-1 overflow-x-auto text-[11px]">
+            {[
+              { id: 'ALL', label: '全部 8 角色' },
+              { id: 'HW', label: '硬件主管' },
+              { id: 'PM', label: '项目经理' },
+              { id: 'SW', label: '底层软件' },
+              { id: 'SYS', label: '系统整车' },
+              { id: 'DVT', label: '测试验证' },
+              { id: 'QA', label: '品质质量' },
+              { id: 'SCM', label: '采购供应' },
+              { id: 'PSCR', label: '安全PSCR' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setSelectedRoleFilter(f.id)}
+                className={`px-2.5 py-1 rounded-md transition cursor-pointer whitespace-nowrap ${
+                  selectedRoleFilter === f.id
+                    ? 'bg-indigo-600 text-white font-semibold'
+                    : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
           {/* 1. 硬件负责人 / 直属领导 */}
-          <div className="bg-slate-850/80 border border-blue-500/30 rounded-xl p-4 flex flex-col justify-between hover:border-blue-500/50 transition">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <Cpu className="w-4 h-4 text-blue-400" />
-                  <span className="font-bold text-white text-xs">硬件负责人 / 直属主管 (HW Lead)</span>
+          {(selectedRoleFilter === 'ALL' || selectedRoleFilter === 'HW') && (
+            <div className="bg-slate-850/80 border border-blue-500/30 rounded-xl p-4 flex flex-col justify-between hover:border-blue-500/50 transition">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <Cpu className="w-4 h-4 text-blue-400" />
+                    <span className="font-bold text-white text-xs">硬件负责人 / 直属主管 (HW Lead)</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800">
+                    审批签字人 (A)
+                  </span>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800">
-                  审批签字人 (A)
+
+                <div className="space-y-2 mt-2">
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-blue-400 font-semibold block text-[11px] mb-0.5">🔍 真实关注点：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      别把事情搞大到大老板那里；量产后别在我管辖模块爆雷；绝对别让团队再通宵盲目改版擦屁股。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">⚠️ 最怕的事情 (隐秘担忧)：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      同意了让步特采，结果后续 DV/客户路试复现甚至烧管，在管理层复盘会上被公开点名处刑。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-rose-400 font-semibold block text-[11px] mb-0.5">🎯 下一步大概率动作预测：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      把方案打回，要求硬件工程师“再多做几组极限环境摸底”、“找原厂FAE出保证函”，以此拖延并转嫁签字责任。
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-700/60 bg-blue-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
+                <span className="text-[11px] font-bold text-blue-300 flex items-center mb-1">
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+                  系统提供的【攻心/过关应对策略】：
                 </span>
-              </div>
-
-              <div className="space-y-2 mt-2">
-                <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
-                  <span className="text-blue-400 font-semibold block text-[11px] mb-0.5">🔍 真实关注点：</span>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    别把事情搞大到大老板那里；量产后别在我管辖模块爆雷；绝对别让团队再通宵盲目改版擦屁股。
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
-                  <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">⚠️ 最怕的事情 (隐秘担忧)：</span>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    同意了让步特采，结果后续 DV/客户路试复现甚至烧管，在管理层复盘会上被公开点名处刑。
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
-                  <span className="text-rose-400 font-semibold block text-[11px] mb-0.5">🎯 下一步大概率动作预测：</span>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    把方案打回，要求硬件工程师“再多做几组极限环境摸底”、“找原厂FAE出保证函”，以此拖延并转嫁签字责任。
-                  </p>
-                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  递交由专业计算引擎生成的<strong>确定性机理闭环报告与原厂公函留痕</strong>。明确告知：“这是当前满足 SOP 且经数学推导唯一能过审计的方案，免责链条已做实”，彻底卸下其个人签字心理包袱。
+                </p>
               </div>
             </div>
-
-            <div className="mt-3 pt-2.5 border-t border-slate-700/60 bg-blue-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
-              <span className="text-[11px] font-bold text-blue-300 flex items-center mb-1">
-                <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
-                系统提供的【攻心/过关应对策略】：
-              </span>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
-                递交由专业计算引擎生成的<strong>确定性机理闭环报告与原厂公函留痕</strong>。明确告知：“这是当前满足 SOP 且经数学推导唯一能过审计的方案，免责链条已做实”，彻底卸下其个人签字心理包袱。
-              </p>
-            </div>
-          </div>
+          )}
 
           {/* 2. 项目经理 (PM) */}
-          <div className="bg-slate-850/80 border border-emerald-500/30 rounded-xl p-4 flex flex-col justify-between hover:border-emerald-500/50 transition">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <Briefcase className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold text-white text-xs">项目经理 (Project Manager - PM)</span>
+          {(selectedRoleFilter === 'ALL' || selectedRoleFilter === 'PM') && (
+            <div className="bg-slate-850/80 border border-emerald-500/30 rounded-xl p-4 flex flex-col justify-between hover:border-emerald-500/50 transition">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <Briefcase className="w-4 h-4 text-emerald-400" />
+                    <span className="font-bold text-white text-xs">项目经理 (Project Manager - PM)</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                    进度控制人 (A/C)
+                  </span>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                  进度控制人 (A/C)
+
+                <div className="space-y-2 mt-2">
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-emerald-400 font-semibold block text-[11px] mb-0.5">🔍 真实关注点：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      关键里程碑（如 DV 送检、装车节点）绝对不能挂红灯；项目台账里决不能出现不可控延期。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">⚠️ 最怕的事情 (隐秘担忧)：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      硬件人员轻描淡写一句“我们要重新改版投板，要推迟4周”，导致向高层/车厂汇报时节点全盘崩溃。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-rose-400 font-semibold block text-[11px] mb-0.5">🎯 下一步大概率动作预测：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      疯狂催促“能不能先发临时版本让客户先跑起来”、“能不能只飞线跳过测试”。极力施压硬件吞下延期。
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-700/60 bg-emerald-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
+                <span className="text-[11px] font-bold text-emerald-300 flex items-center mb-1">
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+                  系统提供的【攻心/过关应对策略】：
                 </span>
-              </div>
-
-              <div className="space-y-2 mt-2">
-                <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
-                  <span className="text-emerald-400 font-semibold block text-[11px] mb-0.5">🔍 真实关注点：</span>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    关键里程碑（如 DV 送检、装车节点）绝对不能挂红灯；项目台账里决不能出现不可控延期。
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
-                  <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">⚠️ 最怕的事情 (隐秘担忧)：</span>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    硬件人员轻描淡写一句“我们要重新改版投板，要推迟4周”，导致向高层/车厂汇报时节点全盘崩溃。
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
-                  <span className="text-rose-400 font-semibold block text-[11px] mb-0.5">🎯 下一步大概率动作预测：</span>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    疯狂催促“能不能先发临时版本让客户先跑起来”、“能不能只飞线跳过测试”。极力施压硬件吞下延期。
-                  </p>
-                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  绝不只给单一延期方案。直接提供<strong>“双轨推进机制 (Track A/B) + 零工期原位补丁”</strong>，用现成可抄送的决策邮件模板把球踢向各方联合确认，让 PM 获得对上汇报的安全抓手。
+                </p>
               </div>
             </div>
-
-            <div className="mt-3 pt-2.5 border-t border-slate-700/60 bg-emerald-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
-              <span className="text-[11px] font-bold text-emerald-300 flex items-center mb-1">
-                <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
-                系统提供的【攻心/过关应对策略】：
-              </span>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
-                绝不只给单一延期方案。直接提供<strong>“双轨推进机制 (Track A/B) + 零工期原位补丁”</strong>，用现成可抄送的决策邮件模板把球踢向各方联合确认，让 PM 获得对上汇报的安全抓手。
-              </p>
-            </div>
-          </div>
+          )}
 
           {/* 3. 软件负责人 (SW Lead) */}
-          <div className="bg-slate-850/80 border border-purple-500/30 rounded-xl p-4 flex flex-col justify-between hover:border-purple-500/50 transition">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <Code2 className="w-4 h-4 text-purple-400" />
-                  <span className="font-bold text-white text-xs">底层软件 / 控制算法负责人 (SW Lead)</span>
+          {(selectedRoleFilter === 'ALL' || selectedRoleFilter === 'SW') && (
+            <div className="bg-slate-850/80 border border-purple-500/30 rounded-xl p-4 flex flex-col justify-between hover:border-purple-500/50 transition">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <Code2 className="w-4 h-4 text-purple-400" />
+                    <span className="font-bold text-white text-xs">底层软件 / 控制算法负责人 (SW Lead)</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-950 text-purple-300 border border-purple-800">
+                    协同执行人 (R)
+                  </span>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-950 text-purple-300 border border-purple-800">
-                  协同执行人 (R)
+
+                <div className="space-y-2 mt-2">
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-purple-400 font-semibold block text-[11px] mb-0.5">🔍 真实关注点：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      别动我的核心控制环路；别让我改已经冻结的底层驱动和寄存器配置；别增加 CPU 负载。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">⚠️ 最怕的事情 (隐秘担忧)：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      硬件搞不定噪声或泵升，就甩锅要求软件“加算法滤波”、“改死区配置”、“做下桥制动”，结果软件引入新 Bug 替硬件背锅。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-rose-400 font-semibold block text-[11px] mb-0.5">🎯 下一步大概率动作预测：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      以“当前处于发版代码冻结期”、“增加PWM中断会导致ASIL D超频跑飞”为由，直接在需求评审会上无情驳回。
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-700/60 bg-purple-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
+                <span className="text-[11px] font-bold text-purple-300 flex items-center mb-1">
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+                  系统提供的【攻心/过关应对策略】：
                 </span>
-              </div>
-
-              <div className="space-y-2 mt-2">
-                <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
-                  <span className="text-purple-400 font-semibold block text-[11px] mb-0.5">🔍 真实关注点：</span>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    别动我的核心控制环路；别让我改已经冻结的底层驱动和寄存器配置；别增加 CPU 负载。
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
-                  <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">⚠️ 最怕的事情 (隐秘担忧)：</span>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    硬件搞不定噪声或泵升，就甩锅要求软件“加算法滤波”、“改死区配置”、“做下桥制动”，结果软件引入新 Bug 替硬件背锅。
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
-                  <span className="text-rose-400 font-semibold block text-[11px] mb-0.5">🎯 下一步大概率动作预测：</span>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    以“当前处于发版代码冻结期”、“增加PWM中断会导致ASIL D超频跑飞”为由，直接在需求评审会上无情驳回。
-                  </p>
-                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  硬件<strong>自行消化吸收（原位并阻容/换高耐压管/贴磁珠）</strong>。若确需软件配合，仅需一次性修改标定参数（如寄存器下发 2 字节），且硬件提前给出详细台架测试与安全边界实测数据，绝不碰核心算法架构。
+                </p>
               </div>
             </div>
-
-            <div className="mt-3 pt-2.5 border-t border-slate-700/60 bg-purple-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
-              <span className="text-[11px] font-bold text-purple-300 flex items-center mb-1">
-                <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
-                系统提供的【攻心/过关应对策略】：
-              </span>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
-                硬件<strong>自行消化吸收（原位并阻容/换高耐压管/贴磁珠）</strong>。若确需软件配合，仅需一次性修改标定参数（如寄存器下发 2 字节），且硬件提前给出详细台架测试与安全边界实测数据，绝不碰核心算法架构。
-              </p>
-            </div>
-          </div>
+          )}
 
           {/* 4. 系统 / 整车匹配负责人 (System Lead) */}
-          <div className="bg-slate-850/80 border border-amber-500/30 rounded-xl p-4 flex flex-col justify-between hover:border-amber-500/50 transition">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <Target className="w-4 h-4 text-amber-400" />
-                  <span className="font-bold text-white text-xs">系统与整车匹配负责人 (System Lead)</span>
+          {(selectedRoleFilter === 'ALL' || selectedRoleFilter === 'SYS') && (
+            <div className="bg-slate-850/80 border border-amber-500/30 rounded-xl p-4 flex flex-col justify-between hover:border-amber-500/50 transition">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <Target className="w-4 h-4 text-amber-400" />
+                    <span className="font-bold text-white text-xs">系统与整车匹配负责人 (System Lead)</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
+                    联合会签人 (C/A)
+                  </span>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
-                  联合会签人 (C/A)
+
+                <div className="space-y-2 mt-2">
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">🔍 真实关注点：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      整车功能别降级；别因为 ECU 内部问题修改整车线束定义或整车通讯协议。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">⚠️ 最怕的事情 (隐秘担忧)：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      车厂客户在整车联调中发现功能故障，向上汇报导致系统工程团队被牵连问责。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-rose-400 font-semibold block text-[11px] mb-0.5">🎯 下一步大概率动作预测：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      强调“原系统规范就是这么定义的”，拒绝任何放宽或特批，要求 ECU 硬件在控制器内部独立达标。
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-700/60 bg-amber-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
+                <span className="text-[11px] font-bold text-amber-300 flex items-center mb-1">
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+                  系统提供的【攻心/过关应对策略】：
                 </span>
-              </div>
-
-              <div className="space-y-2 mt-2">
-                <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
-                  <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">🔍 真实关注点：</span>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    整车功能别降级；别因为 ECU 内部问题修改整车线束定义或整车通讯协议。
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
-                  <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">⚠️ 最怕的事情 (隐秘担忧)：</span>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    车厂客户在整车联调中发现功能故障，向上汇报导致系统工程团队被牵连问责。
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
-                  <span className="text-rose-400 font-semibold block text-[11px] mb-0.5">🎯 下一步大概率动作预测：</span>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    强调“原系统规范就是这么定义的”，拒绝任何放宽或特批，要求 ECU 硬件在控制器内部独立达标。
-                  </p>
-                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  用严密测试事实（如金属外壳屏蔽衰减、寄生线束电感解耦分析）证明问题边界。若线束引发超标，以<strong>详实数据提交整车线束改善建议（外部ECR）</strong>，权责分明，促成跨专业协同联合签字。
+                </p>
               </div>
             </div>
+          )}
 
-            <div className="mt-3 pt-2.5 border-t border-slate-700/60 bg-amber-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
-              <span className="text-[11px] font-bold text-amber-300 flex items-center mb-1">
-                <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
-                系统提供的【攻心/过关应对策略】：
-              </span>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
-                用严密测试事实（如金属外壳屏蔽衰减、寄生线束电感解耦分析）证明问题边界。若线束引发超标，以<strong>详实数据提交整车线束改善建议（外部ECR）</strong>，权责分明，促成跨专业协同联合签字。
-              </p>
+          {/* 5. 测试与验证负责人 (DVT / Test Lead) */}
+          {(selectedRoleFilter === 'ALL' || selectedRoleFilter === 'DVT') && (
+            <div className="bg-slate-850/80 border border-cyan-500/30 rounded-xl p-4 flex flex-col justify-between hover:border-cyan-500/50 transition">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <Microscope className="w-4 h-4 text-cyan-400" />
+                    <span className="font-bold text-white text-xs">测试与验证负责人 (DVT / Test Lead)</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">
+                    质量把关人 (C)
+                  </span>
+                </div>
+
+                <div className="space-y-2 mt-2">
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-cyan-400 font-semibold block text-[11px] mb-0.5">🔍 真实关注点：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      测试规范覆盖度与测试排期；台架设备安全性；是否有明确的红黄绿判定阈值限值。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">⚠️ 最怕的事情 (隐秘担忧)：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      极端工况下样件爆毁甚至烧坏测试台架测功机；或者测试误判放行后，路试烧管倒查测试失职。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-rose-400 font-semibold block text-[11px] mb-0.5">🎯 下一步大概率动作预测：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      要求将测试循环次数翻倍（如加测 2000 次急停），或以环境试验箱排期满为由推迟测试进场。
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-700/60 bg-cyan-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
+                <span className="text-[11px] font-bold text-cyan-300 flex items-center mb-1">
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+                  系统提供的【攻心/过关应对策略】：
+                </span>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  提供明确的<strong>量化红黄绿三色波形判定标准</strong>（如 Vds ≤ 32V 判定放行，≥ 35V 判定熔断），并由硬件工程师驻场台架跟班测试，承担样机首拆责任。
+                </p>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* 6. 品质与质量经理 (Quality / PQE / SQE) */}
+          {(selectedRoleFilter === 'ALL' || selectedRoleFilter === 'QA') && (
+            <div className="bg-slate-850/80 border border-teal-500/30 rounded-xl p-4 flex flex-col justify-between hover:border-teal-500/50 transition">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <FileCheck className="w-4 h-4 text-teal-400" />
+                    <span className="font-bold text-white text-xs">品质与质量经理 (Quality / PQE / SQE)</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-950 text-teal-300 border border-teal-800">
+                    门禁审核人 (C/A)
+                  </span>
+                </div>
+
+                <div className="space-y-2 mt-2">
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-teal-400 font-semibold block text-[11px] mb-0.5">🔍 真实关注点：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      IATF 16949 / 8D 闭环报告完整性，过程一致性与可追溯性，严防 0km 与批量质量索赔。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">⚠️ 最怕的事情 (隐秘担忧)：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      客户驻厂审核时查出未经审批的飞线或临时补丁，导致整个工厂质量评级降级。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-rose-400 font-semibold block text-[11px] mb-0.5">🎯 下一步大概率动作预测：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      卡住样件出库变更单，要求补充 3 批次 30 台的 CPK 过程能力分析与 1000h 双 85 高温高湿试验。
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-700/60 bg-teal-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
+                <span className="text-[11px] font-bold text-teal-300 flex items-center mb-1">
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+                  系统提供的【攻心/过关应对策略】：
+                </span>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  提供标准格式<strong>8D 根本机理闭环报告</strong>与 AEC-Q101 认证证明，清晰定义受控批次范围与返工 SOP 作业指导书，保证每一道返工均受控可溯。
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 7. 采购与供应链 (Procurement / SCM) */}
+          {(selectedRoleFilter === 'ALL' || selectedRoleFilter === 'SCM') && (
+            <div className="bg-slate-850/80 border border-orange-500/30 rounded-xl p-4 flex flex-col justify-between hover:border-orange-500/50 transition">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <Package className="w-4 h-4 text-orange-400" />
+                    <span className="font-bold text-white text-xs">采购与供应链经理 (Procurement / SCM)</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-950 text-orange-300 border border-orange-800">
+                    资源保障人 (C)
+                  </span>
+                </div>
+
+                <div className="space-y-2 mt-2">
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-orange-400 font-semibold block text-[11px] mb-0.5">🔍 真实关注点：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      物料交期 (Lead Time)、BOM 成本增幅、最小起订量 (MOQ) 与合格供应商名录 (AVL) 兼容性。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">⚠️ 最怕的事情 (隐秘担忧)：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      工程师随意选定特规独家器件，原厂交期 26 周甚至断货停产，导致总装停线每天面临巨额罚款。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-rose-400 font-semibold block text-[11px] mb-0.5">🎯 下一步大概率动作预测：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      直接打回物料新增申请：“该型号非公司 AVL 库内料号，交期超 16 周，请优先使用现有库存物料”。
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-700/60 bg-orange-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
+                <span className="text-[11px] font-bold text-orange-300 flex items-center mb-1">
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+                  系统提供的【攻心/过关应对策略】：
+                </span>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  优先选用<strong>现有库存中已有的通用 0805 车规阻容料号</strong>；若需更换 MOS，优先筛选已有二供 Pin-to-Pin 替代型号，并提供原厂代理商现货 Buffer 协议。
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 8. 产品安全独立代表 (PSCR) */}
+          {(selectedRoleFilter === 'ALL' || selectedRoleFilter === 'PSCR') && (
+            <div className="bg-slate-850/80 border border-red-500/30 rounded-xl p-4 flex flex-col justify-between hover:border-red-500/50 transition">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <Lock className="w-4 h-4 text-red-400" />
+                    <span className="font-bold text-white text-xs">产品安全独立代表 (PSCR)</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-950 text-red-300 border border-red-800">
+                    安全一票否决人 (A/Approval)
+                  </span>
+                </div>
+
+                <div className="space-y-2 mt-2">
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-red-400 font-semibold block text-[11px] mb-0.5">🔍 真实关注点：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      ISO 26262 功能安全符合性、ASIL 降额标准合规、第三方认证审计与产品全生命周期法律责任。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-amber-400 font-semibold block text-[11px] mb-0.5">⚠️ 最怕的事情 (隐秘担忧)：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      在存在严重降额违规或未经验证的安全机制下签字，整车发生安全事故或召回时承担个人连带责任。
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <span className="text-rose-400 font-semibold block text-[11px] mb-0.5">🎯 下一步大概率动作预测：</span>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      直接行使 PSCR 独立否决权，冻结样件发货权限，要求召开全体跨部门安全裁决委员会并向管理层发红牌。
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-700/60 bg-red-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
+                <span className="text-[11px] font-bold text-red-300 flex items-center mb-1">
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+                  系统提供的【攻心/过关应对策略】：
+                </span>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  严格执行<strong>安全机制（SM）有效性核查与降额裕量计算</strong>。提供实测与仿真双闭环证据，证明降额裕量从超标恢复至合规（如电压峰值降至额定值 70% 以下），正式签发《产品安全性独立评估意见书》。
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

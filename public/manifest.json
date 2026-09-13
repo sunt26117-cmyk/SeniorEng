@@ -6,8 +6,10 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
   "background_color": "#020617",
   "theme_color": "#0f172a",
+  "prefer_related_applications": false,
   "orientation": "any",
   "icons": [
     {

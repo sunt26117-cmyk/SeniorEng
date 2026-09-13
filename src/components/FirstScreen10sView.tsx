@@ -135,7 +135,7 @@ export const FirstScreen10sView: React.FC<FirstScreen10sProps> = ({
           <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
             <span>物理链条: <span className="text-cyan-300 font-mono">E=½Jω² → 回馈电流 → Cbus过充 → Vds击穿</span></span>
             <button
-              onClick={() => onNavigateTab('facts_patterns')}
+              onClick={() => onNavigateTab('patterns')}
               className="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium cursor-pointer"
             >
               查看 18 个 Pattern 引擎 <ChevronRight className="w-3 h-3" />
@@ -160,7 +160,7 @@ export const FirstScreen10sView: React.FC<FirstScreen10sProps> = ({
           <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
             <span>交付周期: <strong className="text-emerald-400 font-mono">3天 (保住 15天 DV 节点)</strong></span>
             <button
-              onClick={() => onNavigateTab('decisions')}
+              onClick={() => onNavigateTab('cockpit')}
               className="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium cursor-pointer"
             >
               查看 C-T-S-Q-L 决策与 Why-Not <ChevronRight className="w-3 h-3" />
@@ -185,12 +185,40 @@ export const FirstScreen10sView: React.FC<FirstScreen10sProps> = ({
           <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
             <span>门禁判据: <span className="text-emerald-300">Pass: Vds &le; 32V</span> / <span className="text-red-400">Fail: Vds &ge; 35V</span></span>
             <button
-              onClick={() => onNavigateTab('verification_loop')}
+              onClick={() => onNavigateTab('verification')}
               className="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium cursor-pointer"
             >
               进入验证闭环与回填 <ChevronRight className="w-3 h-3" />
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* 团队担忧点透视与多方推演博弈直通卡 */}
+      <div className="bg-gradient-to-r from-indigo-950/40 via-slate-900 to-blue-950/40 border border-indigo-500/30 rounded-xl p-5 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                STAKEHOLDER WARGAME
+              </span>
+              <span className="text-sm font-bold text-white">
+                团队成员真实担忧点透视与领导多方推演博弈
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed max-w-3xl">
+              集成<strong>硬件主管 (怕爆雷背锅)</strong>、<strong>项目经理 PM (怕节点延期)</strong>、<strong>底层软件 (怕改环路)</strong>、<strong>系统整车 (怕线束重定)</strong>、<strong>测试 DVT</strong>、<strong>品质 SQE</strong>、<strong>采购</strong> 与 <strong>产品安全官 PSCR</strong> 的核心隐秘担忧。支持多轮交锋质疑与免责纳什均衡推演。
+            </p>
+          </div>
+
+          <button
+            id="quick-goto-wargame-btn"
+            onClick={() => onNavigateTab('recommendation')}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition shadow-md shadow-indigo-900/30 flex items-center gap-2 cursor-pointer whitespace-nowrap self-start md:self-auto shrink-0"
+          >
+            <span>进入团队推演博弈台</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -201,27 +229,28 @@ export const FirstScreen10sView: React.FC<FirstScreen10sProps> = ({
           <span>车规工程决策完整端到端推进链 (Engineering Decision Trace Pipeline)</span>
         </h3>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
           {[
-            { step: '1', title: '工程工况输入', subtitle: '统一输入模型', tab: 'input', status: 'COMPLETE' },
-            { step: '2', title: '事实与证据', subtitle: '9类强制标签', tab: 'facts', status: 'COMPLETE' },
-            { step: '3', title: '物理机理&Pattern', subtitle: 'P001~P018确定性', tab: 'facts_patterns', status: 'ACTIVE' },
-            { step: '4', title: '决策与C-T-S-Q-L', subtitle: 'VETO & Why-Not', tab: 'decisions', status: 'READY' },
-            { step: '5', title: '验证闭环&VOI', subtitle: '回填重算风险', tab: 'verification_loop', status: 'READY' },
-            { step: '6', title: '功能安全&可靠性', subtitle: 'FMEDA/FTA/寿命', tab: 'safety_reliability', status: 'READY' },
-            { step: '7', title: '受控文档&EDR', subtitle: '防篡改决策单', tab: 'docs', status: 'READY' },
+            { step: '1', title: '工程工况输入', subtitle: '统一输入模型', tab: 'input' },
+            { step: '2', title: '事实与证据', subtitle: '9类强制标签', tab: 'facts' },
+            { step: '3', title: '物理机理&Pattern', subtitle: 'P001~P018确定性', tab: 'patterns' },
+            { step: '4', title: '决策与C-T-S-Q-L', subtitle: 'VETO & Why-Not', tab: 'cockpit' },
+            { step: '5', title: '验证闭环&VOI', subtitle: '回填重算风险', tab: 'verification' },
+            { step: '6', title: '功能安全&可靠性', subtitle: 'FMEDA/FTA/寿命', tab: 'safety' },
+            { step: '7', title: '团队博弈推演&RACI', subtitle: '8方心理与攻防', tab: 'recommendation' },
+            { step: '8', title: '受控文档&EDR', subtitle: '防篡改决策单', tab: 'docs' },
           ].map((item, idx) => (
             <button
               key={idx}
               onClick={() => onNavigateTab(item.tab)}
-              className="p-3 rounded-lg border bg-slate-950/70 border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/50 transition text-left cursor-pointer group"
+              className="p-2.5 rounded-lg border bg-slate-950/70 border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/50 transition text-left cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] font-mono text-slate-500 group-hover:text-blue-400">STEP 0{item.step}</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
               </div>
-              <div className="text-xs font-semibold text-slate-200 group-hover:text-blue-300">{item.title}</div>
-              <div className="text-[10px] text-slate-500 mt-0.5">{item.subtitle}</div>
+              <div className="text-xs font-semibold text-slate-200 group-hover:text-blue-300 truncate">{item.title}</div>
+              <div className="text-[10px] text-slate-500 mt-0.5 truncate">{item.subtitle}</div>
             </button>
           ))}
         </div>

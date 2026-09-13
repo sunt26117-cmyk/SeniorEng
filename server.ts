@@ -14,6 +14,22 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
+// Anti-Stale Caching Middleware: ensure clients always fetch fresh index.html and sw.js
+app.use((req, res, next) => {
+  if (
+    req.path === '/' ||
+    req.path === '/sw.js' ||
+    req.path.endsWith('.html') ||
+    req.path.includes('/src/')
+  ) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
+
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({

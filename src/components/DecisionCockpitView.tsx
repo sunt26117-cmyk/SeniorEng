@@ -36,6 +36,7 @@ interface DecisionCockpitViewProps {
   hwLeadStyle?: HwLeadStyle;
   onLeadStyleChange?: (style: HwLeadStyle) => void;
   recurrenceCount?: number;
+  daysRemaining?: number;
 }
 
 export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
@@ -44,6 +45,7 @@ export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
   hwLeadStyle = 'AGILE_DELIVERY',
   onLeadStyleChange,
   recurrenceCount = 0,
+  daysRemaining = 14,
 }) => {
   if (!result) return null;
 
@@ -59,15 +61,28 @@ export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
   // 直属领导态度风格状态
   const [currentLeadStyle, setCurrentLeadStyle] = useState<HwLeadStyle>(hwLeadStyle);
 
+  // 4.1 SOP 倒计时 / 节点剩余天数状态 (默认 14 天激活临界模式)
+  const [remainingDays, setRemainingDays] = useState<number>(daysRemaining);
+
+  // 响应父组件工况切换与属性变化
+  React.useEffect(() => {
+    if (typeof daysRemaining === 'number') {
+      setRemainingDays(daysRemaining);
+    }
+  }, [daysRemaining]);
+
+  React.useEffect(() => {
+    if (hwLeadStyle) {
+      setCurrentLeadStyle(hwLeadStyle);
+    }
+  }, [hwLeadStyle]);
+
   const handleStyleSelect = (style: HwLeadStyle) => {
     setCurrentLeadStyle(style);
     if (onLeadStyleChange) {
       onLeadStyleChange(style);
     }
   };
-
-  // 4.1 SOP 倒计时 / 节点剩余天数状态 (默认 14 天激活临界模式)
-  const [remainingDays, setRemainingDays] = useState<number>(14);
 
   const resetWeights = () => {
     setWeights({
@@ -419,151 +434,155 @@ export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
       </div>
 
       {/* P0-2: 去黑箱化多维工程风险解构 (Multi-Dimensional Risk Breakdown) */}
-      {result.multiRiskBreakdown && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center">
-                <ShieldAlert className="w-4 h-4 mr-2 text-rose-400" />
-                去黑箱化多维工程风险解构 (P0 级第二支柱：杜绝模糊综合分掩盖致命单点)
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                严防“平均分 65”蒙混过关。芯片 SOA 越界、耐压击穿或客户 CSA 违约等致命硬伤坚决独立亮红，绝不与低成本相抵消。
-              </p>
+      {result.multiRiskBreakdown && (() => {
+        const mb = result.multiRiskBreakdown as any;
+        const tech = mb.techMargin || mb.technicalRisk || { level: 'Medium', score: 65, description: '技术裕量在可控范围内', limitMetric: '设计规格要求' };
+        const reli = mb.reliabilityStress || mb.reliabilityRisk || { level: 'Medium', score: 60, description: '应力负载在安全工作区内', soaStatus: 'SOA 边界内' };
+        const sched = mb.scheduleDelay || mb.scheduleRisk || { level: 'Medium', score: 55, description: '节点周期仍有缓冲余量', slipWeeks: 1 };
+        const cost = mb.redesignCost || mb.costRisk || { level: 'Low', score: 30, description: '无改版开模开销', toolingCostUsd: 0 };
+        const veri = mb.verificationGap || mb.verificationRisk || { level: 'Low', score: 35, description: '台架验证覆盖度良好', unverifiedPoints: ['温升与瞬态复测'] };
+
+        return (
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center">
+                  <ShieldAlert className="w-4 h-4 mr-2 text-rose-400" />
+                  去黑箱化多维工程风险解构 (P0 级第二支柱：杜绝模糊综合分掩盖致命单点)
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  严防“平均分 65”蒙混过关。芯片 SOA 越界、耐压击穿或客户 CSA 违约等致命硬伤坚决独立亮红，绝不与低成本相抵消。
+                </p>
+              </div>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-rose-950 border border-rose-800 text-rose-300 self-start sm:self-auto">
+                5 维硬件工程风险穿透
+              </span>
             </div>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-rose-950 border border-rose-800 text-rose-300 self-start sm:self-auto">
-              5 维硬件工程风险穿透
-            </span>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+              {/* 1. 技术裕量 */}
+              <div className="bg-slate-850 border border-slate-700/70 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-200">1. 技术裕量风险</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      tech.level === 'Critical' || tech.level === 'High' || tech.level === 'CRITICAL' || tech.level === 'HIGH'
+                        ? 'bg-red-950 text-red-300 border border-red-800'
+                        : tech.level === 'Medium' || tech.level === 'MEDIUM'
+                        ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                        : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                    }`}
+                  >
+                    {tech.level} ({tech.score ?? 50})
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-normal">
+                  {tech.description || tech.evidence || '技术裕量评估'}
+                </p>
+                <div className="text-[10px] font-mono bg-slate-900/80 px-2 py-1 rounded text-blue-300 border border-slate-800 truncate">
+                  依据: {tech.limitMetric || tech.evidence || '设计标准'}
+                </div>
+              </div>
+
+              {/* 2. 可靠性与 SOA */}
+              <div className="bg-slate-850 border border-slate-700/70 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-200">2. 可靠性应力/SOA</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      reli.level === 'Critical' || reli.level === 'High' || reli.level === 'CRITICAL' || reli.level === 'HIGH'
+                        ? 'bg-red-950 text-red-300 border border-red-800'
+                        : reli.level === 'Medium' || reli.level === 'MEDIUM'
+                        ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                        : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                    }`}
+                  >
+                    {reli.level} ({reli.score ?? 50})
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-normal">
+                  {reli.description || reli.evidence || '应力可靠性核算'}
+                </p>
+                <div className="text-[10px] font-mono bg-slate-900/80 px-2 py-1 rounded text-rose-300 border border-slate-800 truncate">
+                  SOA 判定: {reli.soaStatus || reli.evidence || '核算中'}
+                </div>
+              </div>
+
+              {/* 3. 节点延期 */}
+              <div className="bg-slate-850 border border-slate-700/70 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-200">3. 节点延期风险</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      sched.level === 'Critical' || sched.level === 'High' || sched.level === 'CRITICAL' || sched.level === 'HIGH'
+                        ? 'bg-red-950 text-red-300 border border-red-800'
+                        : sched.level === 'Medium' || sched.level === 'MEDIUM'
+                        ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                        : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                    }`}
+                  >
+                    {sched.level} ({sched.score ?? 50})
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-normal">
+                  {sched.description || sched.evidence || '进度交付评估'}
+                </p>
+                <div className="text-[10px] font-mono bg-slate-900/80 px-2 py-1 rounded text-amber-300 border border-slate-800 truncate">
+                  预期滑期: {sched.slipWeeks !== undefined ? `+${sched.slipWeeks} 周` : sched.evidence || '按期'}
+                </div>
+              </div>
+
+              {/* 4. 改版开模成本 */}
+              <div className="bg-slate-850 border border-slate-700/70 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-200">4. 改版模具成本</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      cost.level === 'Critical' || cost.level === 'High' || cost.level === 'CRITICAL' || cost.level === 'HIGH'
+                        ? 'bg-red-950 text-red-300 border border-red-800'
+                        : cost.level === 'Medium' || cost.level === 'MEDIUM'
+                        ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                        : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                    }`}
+                  >
+                    {cost.level} ({cost.score ?? 30})
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-normal">
+                  {cost.description || cost.evidence || '改版开模成本评估'}
+                </p>
+                <div className="text-[10px] font-mono bg-slate-900/80 px-2 py-1 rounded text-yellow-300 border border-slate-800 truncate">
+                  增补开销: {typeof cost.toolingCostUsd === 'number' ? `$${cost.toolingCostUsd.toLocaleString()}` : cost.evidence || '¥0'}
+                </div>
+              </div>
+
+              {/* 5. 验证盲区 */}
+              <div className="bg-slate-850 border border-slate-700/70 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-200">5. 验证盲区/未知</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      veri.level === 'Critical' || veri.level === 'High' || veri.level === 'CRITICAL' || veri.level === 'HIGH'
+                        ? 'bg-red-950 text-red-300 border border-red-800'
+                        : veri.level === 'Medium' || veri.level === 'MEDIUM'
+                        ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                        : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                    }`}
+                  >
+                    {veri.level} ({veri.score ?? 40})
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-normal">
+                  {veri.description || veri.evidence || '台架实测覆盖度'}
+                </p>
+                <div className="text-[10px] text-slate-400 truncate" title={Array.isArray(veri.unverifiedPoints) ? veri.unverifiedPoints.join('; ') : veri.evidence}>
+                  待测盲区: {Array.isArray(veri.unverifiedPoints) ? veri.unverifiedPoints.join('; ') : veri.evidence || '全部实测闭环'}
+                </div>
+              </div>
+            </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
-            {/* 1. 技术裕量 */}
-            <div className="bg-slate-850 border border-slate-700/70 rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-200">1. 技术裕量风险</span>
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                    result.multiRiskBreakdown.techMargin.level === 'Critical' ||
-                    result.multiRiskBreakdown.techMargin.level === 'High'
-                      ? 'bg-red-950 text-red-300 border border-red-800'
-                      : result.multiRiskBreakdown.techMargin.level === 'Medium'
-                      ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                      : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                  }`}
-                >
-                  {result.multiRiskBreakdown.techMargin.level} ({result.multiRiskBreakdown.techMargin.score})
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-normal">
-                {result.multiRiskBreakdown.techMargin.description}
-              </p>
-              <div className="text-[10px] font-mono bg-slate-900/80 px-2 py-1 rounded text-blue-300 border border-slate-800">
-                限值依据: {result.multiRiskBreakdown.techMargin.limitMetric}
-              </div>
-            </div>
-
-            {/* 2. 可靠性与 SOA */}
-            <div className="bg-slate-850 border border-slate-700/70 rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-200">2. 可靠性应力/SOA</span>
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                    result.multiRiskBreakdown.reliabilityStress.level === 'Critical' ||
-                    result.multiRiskBreakdown.reliabilityStress.level === 'High'
-                      ? 'bg-red-950 text-red-300 border border-red-800'
-                      : result.multiRiskBreakdown.reliabilityStress.level === 'Medium'
-                      ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                      : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                  }`}
-                >
-                  {result.multiRiskBreakdown.reliabilityStress.level} ({result.multiRiskBreakdown.reliabilityStress.score})
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-normal">
-                {result.multiRiskBreakdown.reliabilityStress.description}
-              </p>
-              <div className="text-[10px] font-mono bg-slate-900/80 px-2 py-1 rounded text-rose-300 border border-slate-800">
-                SOA 判定: {result.multiRiskBreakdown.reliabilityStress.soaStatus}
-              </div>
-            </div>
-
-            {/* 3. 节点延期 */}
-            <div className="bg-slate-850 border border-slate-700/70 rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-200">3. 节点延期风险</span>
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                    result.multiRiskBreakdown.scheduleDelay.level === 'Critical' ||
-                    result.multiRiskBreakdown.scheduleDelay.level === 'High'
-                      ? 'bg-red-950 text-red-300 border border-red-800'
-                      : result.multiRiskBreakdown.scheduleDelay.level === 'Medium'
-                      ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                      : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                  }`}
-                >
-                  {result.multiRiskBreakdown.scheduleDelay.level} ({result.multiRiskBreakdown.scheduleDelay.score})
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-normal">
-                {result.multiRiskBreakdown.scheduleDelay.description}
-              </p>
-              <div className="text-[10px] font-mono bg-slate-900/80 px-2 py-1 rounded text-amber-300 border border-slate-800">
-                预期滑期: +{result.multiRiskBreakdown.scheduleDelay.slipWeeks} 周
-              </div>
-            </div>
-
-            {/* 4. 改版开模成本 */}
-            <div className="bg-slate-850 border border-slate-700/70 rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-200">4. 改版模具成本</span>
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                    result.multiRiskBreakdown.redesignCost.level === 'Critical' ||
-                    result.multiRiskBreakdown.redesignCost.level === 'High'
-                      ? 'bg-red-950 text-red-300 border border-red-800'
-                      : result.multiRiskBreakdown.redesignCost.level === 'Medium'
-                      ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                      : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                  }`}
-                >
-                  {result.multiRiskBreakdown.redesignCost.level} ({result.multiRiskBreakdown.redesignCost.score})
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-normal">
-                {result.multiRiskBreakdown.redesignCost.description}
-              </p>
-              <div className="text-[10px] font-mono bg-slate-900/80 px-2 py-1 rounded text-yellow-300 border border-slate-800">
-                增补开销: ${result.multiRiskBreakdown.redesignCost.toolingCostUsd.toLocaleString()}
-              </div>
-            </div>
-
-            {/* 5. 验证盲区 */}
-            <div className="bg-slate-850 border border-slate-700/70 rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-200">5. 验证盲区/未知</span>
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                    result.multiRiskBreakdown.verificationGap.level === 'Critical' ||
-                    result.multiRiskBreakdown.verificationGap.level === 'High'
-                      ? 'bg-red-950 text-red-300 border border-red-800'
-                      : result.multiRiskBreakdown.verificationGap.level === 'Medium'
-                      ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                      : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                  }`}
-                >
-                  {result.multiRiskBreakdown.verificationGap.level} ({result.multiRiskBreakdown.verificationGap.score})
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-normal">
-                {result.multiRiskBreakdown.verificationGap.description}
-              </p>
-              <div className="text-[10px] text-slate-400">
-                待测盲区: {result.multiRiskBreakdown.verificationGap.unverifiedPoints.join('; ')}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 2. C-T-S-Q-L Score Table & Ranking */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
@@ -822,135 +841,134 @@ export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
       </div>
 
       {/* P0-3: 措施决策理由显性化：为什么推荐 B 而不选 A / C 三栏对比 */}
-      {result.whyNotComparison && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center">
-                <Scale className="w-4 h-4 mr-2 text-indigo-400" />
-                措施决策理由显性化 (P0 级第三支柱：为什么选推荐方案 vs 为什么不选 A/C)
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                向管理层与主机厂评审答辩时的“护身符”：清晰呈现权衡代价、否决硬因与备选方案重启条件。
-              </p>
+      {result.whyNotComparison && (() => {
+        const raw = result.whyNotComparison as any;
+        const whyNotList = Array.isArray(raw)
+          ? raw
+          : [
+              {
+                optionId: raw.recommendedOption?.optionId || 'B',
+                optionName: raw.recommendedOption?.name || '推荐方案 (方案B)',
+                isRecommended: true,
+                verdictTitle: '为什么选推荐方案',
+                coreTradeoffReason: raw.recommendedOption?.tradeoffRationale || '达成性能、周期与责任平衡的最优工程解',
+                keyRiskOrPenalty: raw.recommendedOption?.closingEvidence || ['台架实测波形具备充足工程裕量'],
+                reActivationCondition: '基准推荐',
+              },
+              {
+                optionId: raw.whyNotOptionA?.optionId || 'A',
+                optionName: raw.whyNotOptionA?.name || '重型保守方案 (方案A)',
+                isRecommended: false,
+                verdictTitle: '为什么不选保守方案',
+                coreTradeoffReason: raw.whyNotOptionA?.whyNotChosenReason || '进度严重滑期且改版模具成本高昂',
+                keyRiskOrPenalty: raw.whyNotOptionA?.keyPenalties || ['节点延期违约风险敞口高'],
+                reActivationCondition: raw.whyNotOptionA?.reActivationCondition || '当实测方案不可行时重启改版',
+              },
+              {
+                optionId: raw.whyNotOptionC?.optionId || 'C',
+                optionName: raw.whyNotOptionC?.name || '激进/特采方案 (方案C)',
+                isRecommended: false,
+                verdictTitle: '为什么坚决否决激进/特采方案',
+                coreTradeoffReason: raw.whyNotOptionC?.whyNotChosenReason || '触碰车规可靠性红线，存在批量售后召回风险',
+                keyRiskOrPenalty: raw.whyNotOptionC?.keyPenalties || ['触碰设计规范红线'],
+                reActivationCondition: raw.whyNotOptionC?.reActivationCondition || '仅限台架临时摸底，严禁量产装车',
+              },
+            ];
+
+        return (
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center">
+                  <Scale className="w-4 h-4 mr-2 text-indigo-400" />
+                  措施决策理由显性化 (P0 级第三支柱：为什么选推荐方案 vs 为什么不选 A/C)
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  向管理层与主机厂评审答辩时的“护身符”：清晰呈现权衡代价、否决硬因与备选方案重启条件。
+                </p>
+              </div>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-950 border border-indigo-800 text-indigo-300 self-start sm:self-auto">
+                评审答辩三栏对比
+              </span>
             </div>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-950 border border-indigo-800 text-indigo-300 self-start sm:self-auto">
-              评审答辩三栏对比
-            </span>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              {whyNotList.map((item: any, idx: number) => {
+                const isRec = item.isRecommended;
+                const isVeto = item.vetoTriggered || (!isRec && idx === 2);
+                return (
+                  <div
+                    key={idx}
+                    className={`rounded-xl p-4 space-y-3 flex flex-col justify-between border ${
+                      isRec
+                        ? 'bg-emerald-950/20 border-emerald-500/40'
+                        : isVeto
+                        ? 'bg-rose-950/20 border-rose-500/40'
+                        : 'bg-amber-950/15 border-amber-500/40'
+                    }`}
+                  >
+                    <div>
+                      <div
+                        className={`flex items-center space-x-2 font-bold mb-1 ${
+                          isRec ? 'text-emerald-400' : isVeto ? 'text-rose-400' : 'text-amber-400'
+                        }`}
+                      >
+                        {isRec ? <CheckCircle2 className="w-4 h-4" /> : isVeto ? <XCircle className="w-4 h-4" /> : <Info className="w-4 h-4" />}
+                        <span>{item.verdictTitle || (isRec ? '为什么选推荐方案' : '为什么不选此方案')} ({item.optionId})</span>
+                      </div>
+                      <div className="text-xs font-semibold text-white mb-2">{item.optionName}</div>
+                      <p className="text-[11px] text-slate-300 leading-relaxed bg-slate-900/60 p-2.5 rounded border border-slate-800 mb-3">
+                        {item.coreTradeoffReason || item.tradeoffRationale || item.whyNotChosenReason}
+                      </p>
+
+                      <div className="space-y-1.5">
+                        <span
+                          className={`text-[10px] font-bold uppercase tracking-wider block ${
+                            isRec ? 'text-emerald-400' : isVeto ? 'text-rose-400' : 'text-amber-400'
+                          }`}
+                        >
+                          {isRec ? '闭环支撑证据链:' : '不选主要代价/工程红线:'}
+                        </span>
+                        <ul className="space-y-1 text-[11px] text-slate-300">
+                          {((item.keyRiskOrPenalty || item.closingEvidence || item.keyPenalties || []) as string[]).map((ev: string, i: number) => (
+                            <li key={i} className="flex items-start">
+                              <span className={`mr-1.5 font-bold ${isRec ? 'text-emerald-400' : isVeto ? 'text-rose-400' : 'text-amber-400'}`}>•</span>
+                              <span>{ev}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`pt-2 border-t text-[10px] ${
+                        isRec
+                          ? 'border-emerald-800/40 text-emerald-300 font-mono'
+                          : isVeto
+                          ? 'border-rose-800/40 text-rose-300'
+                          : 'border-amber-800/40 text-amber-300'
+                      }`}
+                    >
+                      {isRec ? (
+                        '✓ 达成性能、周期与责任平衡的最优解'
+                      ) : (
+                        <span><strong>{isVeto ? '解禁前提：' : '重启条件：'}</strong> {item.reActivationCondition || '经评审签署特采备忘录'}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            {/* 1. 为什么选推荐方案 */}
-            <div className="bg-emerald-950/20 border border-emerald-500/40 rounded-xl p-4 space-y-3 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center space-x-2 text-emerald-400 font-bold mb-1">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>为什么选推荐方案 ({result.whyNotComparison.recommendedOption.optionId})</span>
-                </div>
-                <div className="text-xs font-semibold text-white mb-2">
-                  {result.whyNotComparison.recommendedOption.name}
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed bg-slate-900/60 p-2.5 rounded border border-emerald-900/40 mb-3">
-                  {result.whyNotComparison.recommendedOption.tradeoffRationale}
-                </p>
-
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
-                    闭环支撑证据链:
-                  </span>
-                  <ul className="space-y-1 text-[11px] text-slate-300">
-                    {result.whyNotComparison.recommendedOption.closingEvidence.map((ev, i) => (
-                      <li key={i} className="flex items-start">
-                        <span className="text-emerald-400 mr-1.5 font-bold">•</span>
-                        <span>{ev}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-emerald-800/40 text-[10px] text-emerald-300 font-mono">
-                ✓ 达成性能、周期与责任平衡的最优解
-              </div>
-            </div>
-
-            {/* 2. 为什么不选保守方案 */}
-            <div className="bg-amber-950/15 border border-amber-500/40 rounded-xl p-4 space-y-3 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center space-x-2 text-amber-400 font-bold mb-1">
-                  <Info className="w-4 h-4" />
-                  <span>为什么不选重型保守方案 ({result.whyNotComparison.whyNotOptionA.optionId})</span>
-                </div>
-                <div className="text-xs font-semibold text-white mb-2">
-                  {result.whyNotComparison.whyNotOptionA.name}
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed bg-slate-900/60 p-2.5 rounded border border-amber-900/40 mb-3">
-                  {result.whyNotComparison.whyNotOptionA.whyNotChosenReason}
-                </p>
-
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block">
-                    不选它的主要代价/违约风险:
-                  </span>
-                  <ul className="space-y-1 text-[11px] text-slate-300">
-                    {result.whyNotComparison.whyNotOptionA.keyPenalties.map((pen, i) => (
-                      <li key={i} className="flex items-start">
-                        <span className="text-amber-400 mr-1.5 font-bold">•</span>
-                        <span>{pen}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-amber-800/40 text-[10px] text-amber-300">
-                <strong>重新激活条件：</strong> {result.whyNotComparison.whyNotOptionA.reActivationCondition}
-              </div>
-            </div>
-
-            {/* 3. 为什么不选节点方案 */}
-            <div className="bg-rose-950/20 border border-rose-500/40 rounded-xl p-4 space-y-3 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center space-x-2 text-rose-400 font-bold mb-1">
-                  <XCircle className="w-4 h-4" />
-                  <span>为什么坚决否决激进/特采方案 ({result.whyNotComparison.whyNotOptionC.optionId})</span>
-                </div>
-                <div className="text-xs font-semibold text-white mb-2">
-                  {result.whyNotComparison.whyNotOptionC.name}
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed bg-slate-900/60 p-2.5 rounded border border-rose-900/40 mb-3">
-                  {result.whyNotComparison.whyNotOptionC.whyNotChosenReason}
-                </p>
-
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 block">
-                    触碰的致命工程红线:
-                  </span>
-                  <ul className="space-y-1 text-[11px] text-slate-300">
-                    {result.whyNotComparison.whyNotOptionC.keyPenalties.map((pen, i) => (
-                      <li key={i} className="flex items-start">
-                        <span className="text-rose-400 mr-1.5 font-bold">•</span>
-                        <span>{pen}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-rose-800/40 text-[10px] text-rose-300">
-                <strong>解禁触发前提：</strong> {result.whyNotComparison.whyNotOptionC.reActivationCondition}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Section 11: 领导视角：项目经济风险 (Technical Risk x Business Impact) */}
       {(() => {
-        const econRisk = evaluateLeadershipEconomicRisk(
-          result.options.some((o) => o.veto.rejection_veto),
-          remainingDays
-        );
+        const candidateList = result.candidateActions || (result as any).options || [];
+        const hasVeto = candidateList.some((o: any) => o?.veto?.rejection_veto);
+        const econRisk = evaluateLeadershipEconomicRisk(hasVeto, remainingDays);
+
         return (
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
@@ -1004,129 +1022,137 @@ export const DecisionCockpitView: React.FC<DecisionCockpitViewProps> = ({
       })()}
 
       {/* P0-4: 未来 24 小时执行时刻表与三色量化放行标准 (Next 24-Hour Plan & Pass/Fail Criteria) */}
-      {result.next24HourPlan && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center">
-                <Clock className="w-4 h-4 mr-2 text-cyan-400" />
-                未来 24 小时攻关行动时刻表 (P0 级第四支柱：量化执行与三色判定门禁)
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                拒绝空泛建议，按小时级节奏推进物理台架测试、交叉复核与量化门禁决策。
-              </p>
-            </div>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800 text-cyan-300 self-start sm:self-auto">
-              24h 应急战役计划
-            </span>
-          </div>
+      {result.next24HourPlan && (() => {
+        const plan = result.next24HourPlan as any;
+        const timelineList = plan.timeline || [];
+        const greenPass = plan.passCriteria?.greenPass || plan.passFailCriteria?.[0]?.greenCriteria || '实测关键电气波形与温升满足车规降额要求，具备工艺窗口。';
+        const yellowConditional = plan.passCriteria?.yellowConditional || plan.passFailCriteria?.[0]?.yellowCriteria || '增加局部吸收滤波或限额受控放行，由系统与质量负责人签字。';
+        const redHardStop = plan.passCriteria?.redHardStop || plan.passFailCriteria?.[0]?.redCriteria || '坚决熔断，禁止出货，启动保守方案 PCB 打板改版。';
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left: Hour-by-Hour Timeline */}
-            <div className="lg:col-span-2 space-y-3">
-              <span className="text-xs font-bold text-slate-300 block uppercase tracking-wider">
-                阶段执行时刻表 (Timeline Milestones):
+        return (
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center">
+                  <Clock className="w-4 h-4 mr-2 text-cyan-400" />
+                  未来 24 小时攻关行动时刻表 (P0 级第四支柱：量化执行与三色判定门禁)
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  拒绝空泛建议，按小时级节奏推进物理台架测试、交叉复核与量化门禁决策。
+                </p>
+              </div>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800 text-cyan-300 self-start sm:self-auto">
+                24h 应急战役计划
               </span>
-              <div className="space-y-2.5">
-                {result.next24HourPlan.timeline.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-slate-850/80 border border-slate-700/60 rounded-lg p-3 flex flex-col sm:flex-row sm:items-start gap-3"
-                  >
-                    <div className="shrink-0">
-                      <span className="inline-block px-2.5 py-1 rounded bg-cyan-950 text-cyan-300 border border-cyan-700 text-xs font-mono font-bold">
-                        {item.timeWindow}
-                      </span>
-                    </div>
+            </div>
 
-                    <div className="space-y-1 flex-1 text-xs">
-                      <div className="flex flex-wrap items-center justify-between gap-1">
-                        <span className="font-bold text-white">{item.taskTitle}</span>
-                        <div className="flex items-center space-x-2 text-[10px] text-slate-400 font-mono">
-                          <span>负责: <strong className="text-slate-200">{item.owner}</strong></span>
-                          <span>工装: <strong className="text-slate-200">{item.toolingOrEquip}</strong></span>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left: Hour-by-Hour Timeline */}
+              <div className="lg:col-span-2 space-y-3">
+                <span className="text-xs font-bold text-slate-300 block uppercase tracking-wider">
+                  阶段执行时刻表 (Timeline Milestones):
+                </span>
+                <div className="space-y-2.5">
+                  {timelineList.map((item: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="bg-slate-850/80 border border-slate-700/60 rounded-lg p-3 flex flex-col sm:flex-row sm:items-start gap-3"
+                    >
+                      <div className="shrink-0">
+                        <span className="inline-block px-2.5 py-1 rounded bg-cyan-950 text-cyan-300 border border-cyan-700 text-xs font-mono font-bold">
+                          {item.timeWindow || item.phase || `阶段 ${idx + 1}`}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1 flex-1 text-xs">
+                        <div className="flex flex-wrap items-center justify-between gap-1">
+                          <span className="font-bold text-white">{item.taskTitle || item.task || '攻关验证任务'}</span>
+                          <div className="flex items-center space-x-2 text-[10px] text-slate-400 font-mono">
+                            <span>负责: <strong className="text-slate-200">{item.owner || '硬件工程师'}</strong></span>
+                            <span>工装: <strong className="text-slate-200">{item.toolingOrEquip || item.phase || '测试台架'}</strong></span>
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-slate-300 leading-normal">{item.actionDetails || item.task}</p>
+
+                        <div className="text-[11px] text-emerald-300 font-mono pt-1">
+                          交付物: {item.deliverable || '实测数据报告与波形记录'}
                         </div>
                       </div>
-
-                      <p className="text-[11px] text-slate-300 leading-normal">{item.actionDetails}</p>
-
-                      <div className="text-[11px] text-emerald-300 font-mono pt-1">
-                        交付物: {item.deliverable}
-                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Right: Pass / Fail Thresholds (三色门禁判定) */}
-            <div className="space-y-3">
-              <span className="text-xs font-bold text-slate-300 block uppercase tracking-wider">
-                三色量化门禁标准 (Pass / Fail Thresholds):
-              </span>
+              {/* Right: Pass / Fail Thresholds (三色门禁判定) */}
+              <div className="space-y-3">
+                <span className="text-xs font-bold text-slate-300 block uppercase tracking-wider">
+                  三色量化门禁标准 (Pass / Fail Thresholds):
+                </span>
 
-              <div className="space-y-2.5 text-xs">
-                {/* Green Pass */}
-                <div className="bg-emerald-950/30 border border-emerald-500/50 rounded-lg p-3 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-emerald-300 flex items-center">
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
-                      🟢 达标放行 (Pass)
-                    </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-900/60 text-emerald-200">
-                      无条件推进
-                    </span>
+                <div className="space-y-2.5 text-xs">
+                  {/* Green Pass */}
+                  <div className="bg-emerald-950/30 border border-emerald-500/50 rounded-lg p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-emerald-300 flex items-center">
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+                        🟢 达标放行 (Pass)
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-900/60 text-emerald-200">
+                        无条件推进
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-200 font-mono font-medium">
+                      {greenPass}
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      实测波形与温升满足车规降额要求，具备批量制造工艺窗口。
+                    </p>
                   </div>
-                  <div className="text-[11px] text-slate-200 font-mono font-medium">
-                    {result.next24HourPlan.passCriteria.greenPass}
-                  </div>
-                  <p className="text-[10px] text-slate-400">
-                    实测波形与温升满足车规降额要求，具备批量制造工艺窗口。
-                  </p>
-                </div>
 
-                {/* Yellow Conditional */}
-                <div className="bg-amber-950/30 border border-amber-500/50 rounded-lg p-3 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-amber-300 flex items-center">
-                      <AlertTriangle className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
-                      🟡 条件受控放行 (Conditional)
-                    </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-900/60 text-amber-200">
-                      限额受限放行
-                    </span>
+                  {/* Yellow Conditional */}
+                  <div className="bg-amber-950/30 border border-amber-500/50 rounded-lg p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-amber-300 flex items-center">
+                        <AlertTriangle className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
+                        🟡 条件受控放行 (Conditional)
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-900/60 text-amber-200">
+                        限额受限放行
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-200 font-mono font-medium">
+                      {yellowConditional}
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      触发增补受控措施（如追加局部灌封吸波或下调极端工况占空比）。
+                    </p>
                   </div>
-                  <div className="text-[11px] text-slate-200 font-mono font-medium">
-                    {result.next24HourPlan.passCriteria.yellowConditional}
-                  </div>
-                  <p className="text-[10px] text-slate-400">
-                    触发增补受控措施（如追加局部灌封吸波或下调极端工况占空比）。
-                  </p>
-                </div>
 
-                {/* Red Fail */}
-                <div className="bg-rose-950/30 border border-rose-500/50 rounded-lg p-3 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-rose-300 flex items-center">
-                      <XCircle className="w-3.5 h-3.5 mr-1.5 text-rose-400" />
-                      🔴 熔断中止 (Hard Stop)
-                    </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-rose-900/60 text-rose-200">
-                      立即熔断
-                    </span>
+                  {/* Red Fail */}
+                  <div className="bg-rose-950/30 border border-rose-500/50 rounded-lg p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-rose-300 flex items-center">
+                        <XCircle className="w-3.5 h-3.5 mr-1.5 text-rose-400" />
+                        🔴 熔断中止 (Hard Stop)
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-rose-900/60 text-rose-200">
+                        立即熔断
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-200 font-mono font-medium">
+                      {redHardStop}
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      坚决熔断，启动保守方案 PCB Re-spin 或升级高压/高耐热规格，拒绝侥幸。
+                    </p>
                   </div>
-                  <div className="text-[11px] text-slate-200 font-mono font-medium">
-                    {result.next24HourPlan.passCriteria.redHardStop}
-                  </div>
-                  <p className="text-[10px] text-slate-400">
-                    坚决熔断，启动保守方案 PCB Re-spin 或升级高压/高耐热规格，拒绝侥幸。
-                  </p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
